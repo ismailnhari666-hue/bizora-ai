@@ -1,0 +1,8 @@
+{
+  "appId": "com.bizora.ai",
+  "appName": "BIZORA AI",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
