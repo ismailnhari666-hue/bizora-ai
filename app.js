@@ -32,16 +32,26 @@ async function ordersPage(){
   const statuses=[["pending","En attente"],["preparing","En préparation"],["ready","Prête"],["served","Servie"],["completed","Terminée"],["cancelled","Annulée"]];
   const productOptions=available.map(p=>`<option value="${p.id}">${esc(p.name)} — ${money(p.unit_price)}</option>`).join("");
   $("content").innerHTML=`
-    <div class="panel"><h3>Créer une commande</h3><p class="muted">Ajoutez les articles, puis suivez la préparation et le service.</p>
-      <form id="orderForm"><div class="form-grid">
-        <label>Nom du client<input name="customer_label" maxlength="120" placeholder="Client (facultatif)"></label>
-        <label>Table / Référence<input name="table_label" maxlength="60" placeholder="Ex. Table 4 / À emporter"></label>
-      </div><div class="section-head"><h3>Articles</h3><button type="button" class="secondary" id="addOrderLine">+ Ajouter un article</button></div>
-      <div id="orderLines"></div><label>Note<input name="note" maxlength="500" placeholder="Instructions particulières"></label>
-      <button class="primary" ${available.length?"":"disabled"}>Créer la commande</button>
-      ${available.length?"":'<p class="notice">Ajoutez d’abord un produit actif dans Produits & stock.</p>'}</form></div>
+    <div class="panel"><h3>Créer une commande</h3><p class="muted">Choisissez le type de commande et ajoutez les articles.</p>
+      <form id="orderForm">
+        <label>Type de commande<select name="order_type" id="orderType"><option value="table">Sur place / Table</option><option value="delivery">Livraison</option></select></label>
+        <div id="orderCustomerField" hidden><label>Nom du client (livraison)<input name="customer_label" maxlength="120" placeholder="Nom du client"></label></div>
+        <div id="orderTableField"><label>Numéro de table<input name="table_label" maxlength="60" placeholder="Ex. Table 4" required></label></div>
+        <div class="section-head"><h3>Articles</h3><button type="button" class="secondary" id="addOrderLine">+ Ajouter un article</button></div>
+        <div id="orderLines"></div><label>Note<input name="note" maxlength="500" placeholder="Instructions particulières"></label>
+        <button class="primary" ${available.length?"":"disabled"}>Créer la commande</button>
+        ${available.length?"":'<p class="notice">Ajoutez d’abord un produit actif dans Produits & stock.</p>'}
+      </form></div>
     <div class="section-head"><h3>Suivi des commandes (${data.length})</h3></div>
-    <div class="panel table-wrap">${data.length?`<table><thead><tr><th>Référence</th><th>Table</th><th>Total</th><th>Statut</th><th>Date</th></tr></thead><tbody>${data.map(o=>`<tr><td>${o.id.slice(0,8).toUpperCase()}</td><td>${esc(o.table_label||"—")}</td><td>${money(o.total)}</td><td><select class="order-status" data-id="${o.id}">${statuses.map(([v,l])=>`<option value="${v}" ${o.status===v?"selected":""}>${l}</option>`).join("")}</select></td><td>${new Date(o.created_at).toLocaleString("fr-MA")}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">Aucune commande pour le moment. Créez votre première commande ci-dessus.</div>'}</div>`;
+    <div class="panel table-wrap">${data.length?`<table><thead><tr><th>Référence</th><th>Client / Table</th><th>Total</th><th>Statut</th><th>Date</th></tr></thead><tbody>${data.map(o=>`<tr><td>${o.id.slice(0,8).toUpperCase()}</td><td>${o.customer_label?`Livraison — ${esc(o.customer_label)}`:`Table — ${esc(o.table_label||"—")}`}</td><td>${money(o.total)}</td><td><select class="order-status" data-id="${o.id}">${statuses.map(([v,l])=>`<option value="${v}" ${o.status===v?"selected":""}>${l}</option>`).join("")}</select></td><td>${new Date(o.created_at).toLocaleString("fr-MA")}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">Aucune commande pour le moment. Créez votre première commande ci-dessus.</div>'}</div>`;
+  const typeSelect=$("orderType"), customerWrap=$("orderCustomerField"), tableWrap=$("orderTableField");
+  const syncOrderType=()=>{
+    const delivery=typeSelect.value==="delivery";
+    customerWrap.hidden=!delivery;tableWrap.hidden=delivery;
+    customerWrap.querySelector("input").required=delivery;
+    tableWrap.querySelector("input").required=!delivery;
+  };
+  typeSelect.onchange=syncOrderType;syncOrderType();
   const addLine=()=>{
     if(!available.length)return;
     const row=document.createElement("div");row.className="form-grid order-line";
@@ -54,8 +64,11 @@ async function ordersPage(){
     e.preventDefault();
     const lines=[...document.querySelectorAll("#orderLines .order-line")].map(row=>({product_id:row.querySelector('[name="product_id"]').value,quantity:Number(row.querySelector('[name="quantity"]').value)}));
     if(!lines.length||lines.some(x=>!x.product_id||!Number.isFinite(x.quantity)||x.quantity<=0)){toast("Vérifiez les articles et les quantités");return}
-    const form=new FormData(e.target);
-    const {error}=await sb.rpc("bizora_create_order",{p_org:orgId,p_customer:null,p_table:form.get("table_label"),p_note:form.get("note"),p_items:lines});
+    const form=new FormData(e.target),delivery=form.get("order_type")==="delivery";
+    const customer=delivery?String(form.get("customer_label")||"").trim():null;
+    const table=delivery?"Livraison":String(form.get("table_label")||"").trim();
+    if(delivery&&!customer){toast("Le nom du client est obligatoire pour une livraison");return}
+    const {error}=await sb.rpc("bizora_create_order",{p_org:orgId,p_customer:customer,p_table:table,p_note:form.get("note"),p_items:lines});
     if(error){toast(error.message);return}toast("Commande créée avec succès");await ordersPage();
   };
   document.querySelectorAll(".order-status").forEach(select=>select.onchange=async e=>{
