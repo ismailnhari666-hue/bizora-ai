@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "BIZORA AI",
+  "short_name": "BIZORA",
+  "description": "Plateforme intelligente de gestion d'entreprise.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1020",
+  "theme_color": "#10152d",
+  "icons": [
+    {
+      "src": "icons/bizora-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
