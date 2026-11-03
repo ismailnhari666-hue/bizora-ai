@@ -1,6 +1,6 @@
 {
-  "appId": "com.bizora.ai",
-  "appName": "BIZORA AI",
+  "appId": "com.bizora.ai.newinstall",
+  "appName": "BIZORA AI Nouveau",
   "webDir": "www",
   "server": {
     "androidScheme": "https"
