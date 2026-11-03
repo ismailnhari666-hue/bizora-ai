@@ -41,7 +41,7 @@ async function ordersPage(){
       <button class="primary" ${available.length?"":"disabled"}>Créer la commande</button>
       ${available.length?"":'<p class="notice">Ajoutez d’abord un produit actif dans Produits & stock.</p>'}</form></div>
     <div class="section-head"><h3>Suivi des commandes (${data.length})</h3></div>
-    <div class="panel table-wrap">${data.length?`<table><thead><tr><th>Référence</th><th>Client / Table</th><th>Total</th><th>Statut</th><th>Date</th></tr></thead><tbody>${data.map(o=>`<tr><td>${o.id.slice(0,8).toUpperCase()}</td><td>${esc(o.customer_label||"—")}<br><small>${esc(o.table_label||"")}</small></td><td>${money(o.total)}</td><td><select class="order-status" data-id="${o.id}">${statuses.map(([v,l])=>`<option value="${v}" ${o.status===v?"selected":""}>${l}</option>`).join("")}</select></td><td>${new Date(o.created_at).toLocaleString("fr-MA")}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">Aucune commande pour le moment. Créez votre première commande ci-dessus.</div>'}</div>`;
+    <div class="panel table-wrap">${data.length?`<table><thead><tr><th>Référence</th><th>Table</th><th>Total</th><th>Statut</th><th>Date</th></tr></thead><tbody>${data.map(o=>`<tr><td>${o.id.slice(0,8).toUpperCase()}</td><td>${esc(o.table_label||"—")}</td><td>${money(o.total)}</td><td><select class="order-status" data-id="${o.id}">${statuses.map(([v,l])=>`<option value="${v}" ${o.status===v?"selected":""}>${l}</option>`).join("")}</select></td><td>${new Date(o.created_at).toLocaleString("fr-MA")}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">Aucune commande pour le moment. Créez votre première commande ci-dessus.</div>'}</div>`;
   const addLine=()=>{
     if(!available.length)return;
     const row=document.createElement("div");row.className="form-grid order-line";
@@ -55,7 +55,7 @@ async function ordersPage(){
     const lines=[...document.querySelectorAll("#orderLines .order-line")].map(row=>({product_id:row.querySelector('[name="product_id"]').value,quantity:Number(row.querySelector('[name="quantity"]').value)}));
     if(!lines.length||lines.some(x=>!x.product_id||!Number.isFinite(x.quantity)||x.quantity<=0)){toast("Vérifiez les articles et les quantités");return}
     const form=new FormData(e.target);
-    const {error}=await sb.rpc("bizora_create_order",{p_org:orgId,p_customer:form.get("customer_label"),p_table:form.get("table_label"),p_note:form.get("note"),p_items:lines});
+    const {error}=await sb.rpc("bizora_create_order",{p_org:orgId,p_customer:null,p_table:form.get("table_label"),p_note:form.get("note"),p_items:lines});
     if(error){toast(error.message);return}toast("Commande créée avec succès");await ordersPage();
   };
   document.querySelectorAll(".order-status").forEach(select=>select.onchange=async e=>{
