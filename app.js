@@ -182,7 +182,7 @@ async function settingsPage(){
   $("dailyReportSettings").onsubmit=async e=>{
     e.preventDefault();const f=new FormData(e.target);
     const number=String(f.get("whatsapp_number")||"").trim();
-    if(f.get("is_enabled")&& !/^\\+?[1-9]\\d{7,14}$/.test(number)){toast("دخل رقم WhatsApp صحيح بالصيغة الدولية، مثال +2126XXXXXXXX");return}
+    if(f.get("is_enabled")&& !/^\+?[1-9]\d{7,14}$/.test(number)){toast("دخل رقم WhatsApp صحيح بالصيغة الدولية، مثال +2126XXXXXXXX");return}
     const payload={organization_id:orgId,is_enabled:f.has("is_enabled"),whatsapp_number:number||null,send_time:f.get("send_time"),timezone:f.get("timezone"),schedule_mode:f.get("schedule_mode"),include_sales:f.has("include_sales"),include_products:f.has("include_products"),include_stock:f.has("include_stock"),include_orders:f.has("include_orders"),include_profit:f.has("include_profit"),updated_by:user.id,updated_at:new Date().toISOString()};
     const {error}=await sb.from("daily_report_settings").upsert(payload,{onConflict:"organization_id"});
     if(error){$("dailyReportMsg").textContent="ما قدرناش نحفظو: "+error.message;return}
