@@ -155,38 +155,41 @@ async function camerasPage(){
 }
 
 async function settingsPage(){
-  const {data,error}=await sb.from("daily_report_settings").select("*").eq("organization_id",orgId).maybeSingle();
+  const [{data:s,error},{data:deliveries}]=await Promise.all([
+    sb.from("daily_report_settings").select("*").eq("organization_id",orgId).maybeSingle(),
+    sb.from("daily_report_delivery_log").select("report_date,status,recipient,sent_at,error_message").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(7)
+  ]);
   if(error){toast("Erreur paramètres : "+error.message);return}
-  const s=data||{is_enabled:false,whatsapp_number:"",send_time:"21:00:00",timezone:"Africa/Casablanca",schedule_mode:"daily",include_sales:true,include_products:true,include_stock:true,include_orders:true,include_profit:false};
+  const v=s||{is_enabled:false,whatsapp_number:"",send_time:"21:00:00",timezone:"Africa/Casablanca",include_sales:true,include_products:true,include_stock:true,include_orders:true,include_profit:false,whatsapp_opt_in:false};
   $("content").innerHTML=`
     <div class="panel">
-      <div class="section-head"><div><h3>Rapport quotidien sur WhatsApp</h3><span class="muted">اختار الوقت والتفاصيل اللي بغيتي توصلك كل نهار.</span></div><span class="badge">Configuration</span></div>
+      <div class="section-head"><div><h3>Rapport quotidien sur WhatsApp</h3><span class="muted">حدد رقمك والساعة والتفاصيل اللي بغيتي توصلك كل نهار.</span></div><span class="badge">WhatsApp Business</span></div>
       <form id="dailyReportSettings" class="form-grid">
-        <label class="inline-form"><input name="is_enabled" type="checkbox" ${s.is_enabled?"checked":""}> تفعيل التقرير اليومي</label>
-        <label>رقم WhatsApp بصيغة دولية<input name="whatsapp_number" type="tel" inputmode="tel" placeholder="+2126XXXXXXXX" value="${esc(s.whatsapp_number||"")}" maxlength="20"><small class="muted">مثال المغرب: +2126XXXXXXXX</small></label>
-        <label>الساعة اللي توصلك فيها الرسالة<input name="send_time" type="time" required value="${String(s.send_time||"21:00").slice(0,5)}"></label>
-        <label>التوقيت<select name="timezone"><option value="Africa/Casablanca" ${s.timezone==="Africa/Casablanca"?"selected":""}>المغرب — Africa/Casablanca</option><option value="UTC" ${s.timezone==="UTC"?"selected":""}>UTC</option></select></label>
-        <label>طريقة الجدولة<select name="schedule_mode"><option value="daily" ${s.schedule_mode==="daily"?"selected":""}>كل يوم فالساعة المحددة</option><option value="after_close_24h" ${s.schedule_mode==="after_close_24h"?"selected":""}>بعد إغلاق المحل (24 ساعة)</option></select></label>
-        <div class="panel"><h4>شنو بغيتي يكون فالتقرير؟</h4>
-          <label><input type="checkbox" name="include_sales" ${s.include_sales?"checked":""}> المبيعات والمداخيل</label>
-          <label><input type="checkbox" name="include_products" ${s.include_products?"checked":""}> المنتجات الأكثر والأقل مبيعاً</label>
-          <label><input type="checkbox" name="include_stock" ${s.include_stock?"checked":""}> المخزون والتنبيه من النفاد</label>
-          <label><input type="checkbox" name="include_orders" ${s.include_orders?"checked":""}> الطلبات وحالتها</label>
-          <label><input type="checkbox" name="include_profit" ${s.include_profit?"checked":""}> الربح التقديري (إلا كانت تكلفة الشراء مسجلة)</label>
+        <label class="inline-form"><input name="is_enabled" type="checkbox" ${v.is_enabled?"checked":""}> تفعيل التقرير اليومي</label>
+        <label>رقم WhatsApp بصيغة دولية<input name="whatsapp_number" type="tel" inputmode="tel" placeholder="+2126XXXXXXXX" value="${esc(v.whatsapp_number||"")}" maxlength="20"><small class="muted">مثال المغرب: +2126XXXXXXXX</small></label>
+        <label>ساعة التوصل بالتقرير<input name="send_time" type="time" required value="${String(v.send_time||"21:00").slice(0,5)}"></label>
+        <label>التوقيت<select name="timezone"><option value="Africa/Casablanca" ${v.timezone==="Africa/Casablanca"?"selected":""}>المغرب — Africa/Casablanca</option><option value="UTC" ${v.timezone==="UTC"?"selected":""}>UTC</option></select></label>
+        <div class="panel"><h4>محتوى التقرير</h4>
+          <label><input type="checkbox" name="include_sales" ${v.include_sales?"checked":""}> المبيعات وعدد العمليات</label>
+          <label><input type="checkbox" name="include_products" ${v.include_products?"checked":""}> المنتجات الأكثر مبيعاً</label>
+          <label><input type="checkbox" name="include_stock" ${v.include_stock?"checked":""}> المخزون والمنتجات القريبة من النفاد</label>
+          <label><input type="checkbox" name="include_orders" ${v.include_orders?"checked":""}> الطلبات وحالتها</label>
+          <label><input type="checkbox" name="include_profit" ${v.include_profit?"checked":""}> ملاحظة الأرباح (تظهر فقط حسب المعطيات المتاحة)</label>
         </div>
+        <label class="inline-form"><input type="checkbox" name="whatsapp_opt_in" ${v.whatsapp_opt_in?"checked":""}> كنوافق نتوصل بتقارير BIZORA AI على هاد الرقم عبر WhatsApp.</label>
         <button class="primary" type="submit">حفظ الإعدادات</button>
       </form>
-      <p class="notice">مهم: دابا كنجهزو إعدادات التقرير فقط. الإرسال التلقائي عبر WhatsApp مازال ما تفعلش؛ خاص ربط WhatsApp Business API وخدمة آمنة فالخادم قبل ما توصلك الرسائل.</p>
+      <p class="notice">الإرسال كيحتاج إعداد حساب WhatsApp Business ديال BIZORA AI وقالب رسالة (Template) مصادق عليه من Meta. خاص صاحب الرقم يوافق على التوصل بالتقارير.</p>
       <p id="dailyReportMsg" class="muted" aria-live="polite"></p>
-    </div>`;
+    </div>
+    <div class="panel"><h3>آخر التقارير</h3>${(deliveries||[]).length?(deliveries||[]).map(x=>`<div class="row"><span>${esc(x.report_date)} — ${esc(x.recipient)}</span><span class="badge">${x.status==="sent"?"تم الإرسال":x.status==="failed"?"فشل الإرسال":"قيد المعالجة"}</span></div>${x.error_message?`<small class="muted">${esc(x.error_message)}</small>`:""}`).join(""):"<p class='muted'>مازال ما تسيفط حتى تقرير.</p>"}</div>`;
   $("dailyReportSettings").onsubmit=async e=>{
-    e.preventDefault();const f=new FormData(e.target);
-    const number=String(f.get("whatsapp_number")||"").trim();
-    if(f.get("is_enabled")&& !/^\+?[1-9]\d{7,14}$/.test(number)){toast("دخل رقم WhatsApp صحيح بالصيغة الدولية، مثال +2126XXXXXXXX");return}
-    const payload={organization_id:orgId,is_enabled:f.has("is_enabled"),whatsapp_number:number||null,send_time:f.get("send_time"),timezone:f.get("timezone"),schedule_mode:f.get("schedule_mode"),include_sales:f.has("include_sales"),include_products:f.has("include_products"),include_stock:f.has("include_stock"),include_orders:f.has("include_orders"),include_profit:f.has("include_profit"),updated_by:user.id,updated_at:new Date().toISOString()};
+    e.preventDefault();const f=new FormData(e.target),number=String(f.get("whatsapp_number")||"").trim();
+    if(f.get("is_enabled")&&(!/^\\+?[1-9]\\d{7,14}$/.test(number)||!f.has("whatsapp_opt_in"))){toast("دخل رقم صحيح ووافق على التوصل بالتقارير");return}
+    const payload={organization_id:orgId,is_enabled:f.has("is_enabled"),whatsapp_number:number||null,whatsapp_opt_in:f.has("whatsapp_opt_in"),send_time:f.get("send_time"),timezone:f.get("timezone"),schedule_mode:"daily",include_sales:f.has("include_sales"),include_products:f.has("include_products"),include_stock:f.has("include_stock"),include_orders:f.has("include_orders"),include_profit:f.has("include_profit"),updated_by:user.id,updated_at:new Date().toISOString()};
     const {error}=await sb.from("daily_report_settings").upsert(payload,{onConflict:"organization_id"});
     if(error){$("dailyReportMsg").textContent="ما قدرناش نحفظو: "+error.message;return}
-    $("dailyReportMsg").textContent="تحفظات الإعدادات بنجاح. الإرسال التلقائي غادي يتفعل من بعد ربط WhatsApp Business.";
+    $("dailyReportMsg").textContent="تحفظات الإعدادات بنجاح.";
     toast("تم حفظ إعدادات التقرير");
   };
 }
