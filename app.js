@@ -185,7 +185,7 @@ async function settingsPage(){
     <div class="panel"><h3>آخر التقارير</h3>${(deliveries||[]).length?(deliveries||[]).map(x=>`<div class="row"><span>${esc(x.report_date)} — ${esc(x.recipient)}</span><span class="badge">${x.status==="sent"?"تم الإرسال":x.status==="failed"?"فشل الإرسال":"قيد المعالجة"}</span></div>${x.error_message?`<small class="muted">${esc(x.error_message)}</small>`:""}`).join(""):"<p class='muted'>مازال ما تسيفط حتى تقرير.</p>"}</div>`;
   $("dailyReportSettings").onsubmit=async e=>{
     e.preventDefault();const f=new FormData(e.target),number=String(f.get("whatsapp_number")||"").trim();
-    if(f.get("is_enabled")&&(!/^\\+?[1-9]\\d{7,14}$/.test(number)||!f.has("whatsapp_opt_in"))){toast("دخل رقم صحيح ووافق على التوصل بالتقارير");return}
+    if(f.get("is_enabled")&&(!/^\+?[1-9]\d{7,14}$/.test(number)||!f.has("whatsapp_opt_in"))){toast("دخل رقم صحيح ووافق على التوصل بالتقارير");return}
     const payload={organization_id:orgId,is_enabled:f.has("is_enabled"),whatsapp_number:number||null,whatsapp_opt_in:f.has("whatsapp_opt_in"),send_time:f.get("send_time"),timezone:f.get("timezone"),schedule_mode:"daily",include_sales:f.has("include_sales"),include_products:f.has("include_products"),include_stock:f.has("include_stock"),include_orders:f.has("include_orders"),include_profit:f.has("include_profit"),updated_by:user.id,updated_at:new Date().toISOString()};
     const {error}=await sb.from("daily_report_settings").upsert(payload,{onConflict:"organization_id"});
     if(error){$("dailyReportMsg").textContent="ما قدرناش نحفظو: "+error.message;return}
