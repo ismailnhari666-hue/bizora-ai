@@ -1,0 +1,9 @@
+{
+  "cameras": [
+    {
+      "label": "Main entrance",
+      "camera_id": "REPLACE_WITH_CAMERA_UUID",
+      "rtsp_url": "rtsp://CAMERA_LAN_ADDRESS:554/STREAM_PATH"
+    }
+  ]
+}
