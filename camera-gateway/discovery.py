@@ -90,6 +90,11 @@ def parse_probe_response(payload: bytes, source_ip: str | None = None) -> dict |
 
     metadata = {}
     for scope in scopes:
+        parts = [part for part in scope.rstrip("/").split("/") if part]
+        if len(parts) >= 2:
+            key, value = parts[-2].lower(), parts[-1]
+            if key in {"name", "hardware", "manufacturer", "model", "serial", "location"}:
+                metadata[key] = value[:160]
         clean = scope.rstrip("/").split("/")[-1]
         if "=" in clean:
             key, value = clean.split("=", 1)
