@@ -299,13 +299,13 @@ async function settingsPage(){
     $("salesTestForm").onsubmit=async e=>{
       e.preventDefault();const form=new FormData(e.target);testRecipient=String(form.get("recipient")||"").trim();
       const box=$("salesTestPreview");box.textContent="كنوجد معاينة تقرير المبيعات…";
-      const {data,error}=await sb.functions.invoke("send-sales-test-report",{body:{recipient:testRecipient,confirm_send:false}});
+      const {data,error}=await sb.functions.invoke("send-sales-test-report",{body:{recipient:testRecipient,organization_id:orgId,confirm_send:false}});
       if(error||!data?.ok){box.textContent="تعذرت المعاينة: "+(data?.error||error?.message||"خطأ غير معروف");return}
       box.innerHTML=`<p>عدد المبيعات المكتملة: <b>${Number(data.sales_count||0)}</b> — الإجمالي: <b>${money(data.total_sales||0)}</b></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere;background:#0d1529;padding:13px;border-radius:10px;color:#e7ebfa">${esc(data.message_preview||"")}</pre><p class="notice">راجع الرقم ومحتوى التقرير. لن تُرسل أي رسالة حتى تضغط على زر الإرسال وتؤكد العملية.</p><button type="button" class="primary" id="confirmSalesTest">إرسال التقرير التجريبي الآن</button>`;
       $("confirmSalesTest").onclick=async()=>{
         if(!confirm("واش متأكد بغيتي نصيفطو تقرير المبيعات التجريبي لهاد الرقم؟"))return;
         const button=$("confirmSalesTest");button.disabled=true;button.textContent="جاري الإرسال…";
-        const result=await sb.functions.invoke("send-sales-test-report",{body:{recipient:testRecipient,confirm_send:true}});
+        const result=await sb.functions.invoke("send-sales-test-report",{body:{recipient:testRecipient,organization_id:orgId,confirm_send:true}});
         if(result.error||!result.data?.ok){box.insertAdjacentHTML("beforeend",`<p class="notice">فشل طلب الإرسال: ${esc(result.data?.provider_error||result.data?.error||result.error?.message||"خطأ غير معروف")}</p>`);button.disabled=false;button.textContent="إعادة المحاولة";return}
         box.insertAdjacentHTML("beforeend",`<p class="notice">${result.data.provider_accepted?"قبلت Meta طلب الإرسال. التوصل الفعلي مازال خاصو تأكيد من WhatsApp.":"الطلب رجع بلا تأكيد قبول الرسالة من Meta."}</p>`);
         button.remove();
