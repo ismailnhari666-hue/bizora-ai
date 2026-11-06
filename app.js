@@ -156,11 +156,94 @@ async function camerasPage(){
     await refreshGatewayStatus();
   };
   document.querySelectorAll("[data-ai-tab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("[data-ai-tab]").forEach(x=>x.classList.toggle("active",x===b));["Dashboard","Cameras","Cash","Stock"].forEach((n,i)=>$("ai"+n).classList.toggle("hidden",b.dataset.aiTab!==["dashboard","cameras","cash","stock"][i]));});
-  let qrStream=null,qrTimer=null;
+  let qrStream=null,qrTimer=null,qrControls=null,qrBusy=false;
   const qrVideo=$("cameraQrVideo"),pairMsg=$("cameraPairMsg");
-  const stopQr=()=>{if(qrTimer)clearInterval(qrTimer);qrTimer=null;if(qrStream)qrStream.getTracks().forEach(t=>t.stop());qrStream=null;if(qrVideo){qrVideo.srcObject=null;qrVideo.classList.add("hidden")}if($("stopQrScan"))$("stopQrScan").disabled=true};
-  $("startQrScan").onclick=async()=>{try{if(!("BarcodeDetector" in window)){pairMsg.textContent="Scan automatique non disponible sur ce navigateur. Saisissez le numéro de série / UID manuellement à partir de l’étiquette QR.";return}const detector=new BarcodeDetector({formats:["qr_code"]});qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});qrVideo.srcObject=qrStream;qrVideo.classList.remove("hidden");await qrVideo.play();$("stopQrScan").disabled=false;pairMsg.textContent="Placez le QR dans le cadre. Seul l’identifiant sera extrait.";qrTimer=setInterval(async()=>{try{const codes=await detector.detect(qrVideo);if(!codes.length)return;const raw=String(codes[0].rawValue||"").trim();const serial=raw.match(/(?:serial(?:number)?|uid|sn)[=:/-]([A-Za-z0-9_-]{5,})/i)?.[1]||raw.match(/^[A-Za-z0-9_-]{8,40}$/)?.[0];if(serial){$("cameraSerial").value=serial;const brand=/hikvision|hik[- ]?connect/i.test(raw)?"Hikvision":/dahua|dmss/i.test(raw)?"Dahua":"";if(brand)$("cameraForm").elements.brand.value=brand; $("cameraForm").elements.method.value="qr";pairMsg.textContent="Identifiant QR lu. Vérifiez les informations puis enregistrez.";stopQr()}else{pairMsg.textContent="QR détecté mais aucun numéro de série reconnu. Saisissez l’UID manuellement si présent.";stopQr()}}catch(err){console.warn("QR scan",err)}},700)}catch(err){pairMsg.textContent="Impossible d’ouvrir la caméra : "+(err.message||"autorisation refusée")}};
-  $("stopQrScan").onclick=stopQr;
+  const stopQr=()=>{
+    if(qrTimer)clearInterval(qrTimer);qrTimer=null;
+    if(qrControls){try{qrControls.stop()}catch(_){}qrControls=null}
+    if(qrStream)qrStream.getTracks().forEach(t=>t.stop());qrStream=null;
+    if(qrVideo){qrVideo.pause();qrVideo.srcObject=null;qrVideo.classList.add("hidden")}
+    if($("stopQrScan"))$("stopQrScan").disabled=true;
+  };
+  const extractQrDeviceInfo=rawValue=>{
+    const raw=String(rawValue||"").trim();
+    if(!raw)return {serial:"",brand:"",kind:""};
+    let parsed=null;
+    try{parsed=JSON.parse(raw)}catch(_){}
+    const serialKeys=["serialnumber","serial","sn","uid","deviceserial","deviceserialno","device_sn","device_uid","devserial"];
+    let serial="";
+    const inspect=(obj,depth=0)=>{
+      if(!obj||typeof obj!=="object"||depth>3||serial)return;
+      for(const [key,value] of Object.entries(obj)){
+        const normalized=key.toLowerCase().replace(/[^a-z0-9]/g,"");
+        if(serialKeys.includes(normalized)&&typeof value==="string"&&/^[A-Za-z0-9_-]{5,64}$/.test(value.trim())){serial=value.trim();return}
+        if(value&&typeof value==="object")inspect(value,depth+1);
+      }
+    };
+    if(parsed)inspect(parsed);
+    if(!serial){
+      try{const url=new URL(raw);for(const [key,value] of url.searchParams){if(serialKeys.includes(key.toLowerCase().replace(/[^a-z0-9]/g,""))&&/^[A-Za-z0-9_-]{5,64}$/.test(value)){serial=value;break}}}catch(_){}
+    }
+    if(!serial){
+      const match=raw.match(/(?:serial(?:number)?|device[_-]?serial|uid|device[_-]?uid|sn)\s*[=:：/ -]\s*["']?([A-Za-z0-9_-]{5,64})/i);
+      if(match)serial=match[1];
+    }
+    if(!serial&&/^[A-Za-z0-9_-]{8,40}$/.test(raw))serial=raw;
+    const brand=/hikvision|hik[- ]?connect|ezviz/i.test(raw)?"Hikvision":/dahua|dmss|imou/i.test(raw)?"Dahua":"";
+    const kind=/\bnvr\b/i.test(raw)?"nvr":/\bdvr\b/i.test(raw)?"dvr":"";
+    return {serial,brand,kind};
+  };
+  const acceptQrValue=raw=>{
+    const info=extractQrDeviceInfo(raw);
+    if(info.serial){
+      $("cameraSerial").value=info.serial;
+      if(info.brand)$("cameraForm").elements.brand.value=info.brand;
+      if(info.kind)$("cameraForm").elements.type.value=info.kind;
+      $("cameraForm").elements.method.value="qr";
+      pairMsg.textContent="تم استخراج UID / الرقم التسلسلي. راجع الاسم والمنطقة ثم اضغط «Enregistrer l’appareil». لم يتم حفظ محتوى QR الخام أو أي كلمة مرور.";
+      stopQr();
+    }else{
+      pairMsg.textContent="تمت قراءة QR، ولكن لم نجد فيه UID أو رقمًا تسلسليًا معروفًا. لم نخزن محتواه. تأكد أنه QR الخاص بمعلومات الجهاز وليس QR مشاركة أو إعداد شبكة.";
+      stopQr();
+    }
+  };
+  $("startQrScan").onclick=async()=>{
+    const button=$("startQrScan");
+    try{
+      if(!navigator.mediaDevices?.getUserMedia)throw new Error("المتصفح لا يدعم فتح الكاميرا. افتح التطبيق عبر HTTPS.");
+      button.disabled=true;pairMsg.textContent="جاري تشغيل الكاميرا الخلفية…";
+      qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+      qrVideo.srcObject=qrStream;qrVideo.classList.remove("hidden");await qrVideo.play();
+      $("stopQrScan").disabled=false;
+      if("BarcodeDetector" in window){
+        let detector;
+        try{detector=new BarcodeDetector({formats:["qr_code"]})}catch(_){detector=null}
+        if(detector){
+          pairMsg.textContent="وجّه الكاميرا نحو QR الموجود في إعدادات DVR/NVR وخليه داخل الصورة.";
+          qrTimer=setInterval(async()=>{
+            if(qrBusy)return;qrBusy=true;
+            try{const codes=await detector.detect(qrVideo);if(codes.length)acceptQrValue(codes[0].rawValue)}
+            catch(err){console.warn("QR detection",err)}
+            finally{qrBusy=false}
+          },500);
+          return;
+        }
+      }
+      pairMsg.textContent="جاري تحميل قارئ QR المتوافق مع المتصفح…";
+      const {BrowserQRCodeReader}=await import("https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm");
+      const reader=new BrowserQRCodeReader();
+      qrStream.getTracks().forEach(t=>t.stop());qrStream=null;
+      qrControls=await reader.decodeFromVideoDevice(undefined,qrVideo,(result,error)=>{
+        if(result)acceptQrValue(result.getText());
+      });
+      pairMsg.textContent="وجّه الكاميرا نحو QR الموجود في إعدادات DVR/NVR.";
+      $("stopQrScan").disabled=false;
+    }catch(err){
+      stopQr();
+      pairMsg.textContent="تعذر تشغيل قارئ QR: "+(err?.message||"تأكد من السماح باستعمال الكاميرا ومن فتح التطبيق عبر HTTPS.");
+    }finally{button.disabled=false}
+  };
+  $("stopQrScan").onclick=()=>{stopQr();pairMsg.textContent="تم إيقاف المسح."};
   $("discoverCameras").onclick=()=>{$("gatewayResult").textContent="Découverte réseau indisponible pour le moment : le Gateway BIZORA doit être installé sur le même réseau local que les caméras. Le navigateur du téléphone ne peut pas effectuer seul le scan ONVIF / UDP.";toast("Gateway requis pour la découverte réseau")};
   $("cameraForm").onsubmit=async e=>{e.preventDefault();const fd=new FormData(e.target);const payload={organization_id:orgId,name:String(fd.get("name")).trim(),zone:String(fd.get("zone")).trim(),brand:String(fd.get("brand")),camera_type:String(fd.get("type")),serial_number:String(fd.get("serial")||"").trim()||null,connection_method:String(fd.get("method")),connection_status:"pending",protocol:"ONVIF"};const {error}=await sb.from("cameras").insert(payload);if(error){toast("Erreur caméra : "+error.message);return}stopQr();toast("Appareil enregistré. Connexion Gateway en attente.");await camerasPage()};
 
