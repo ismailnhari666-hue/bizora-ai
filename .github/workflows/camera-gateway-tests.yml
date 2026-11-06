@@ -1,0 +1,25 @@
+name: Camera Gateway Tests
+
+on:
+  push:
+    paths:
+      - "camera-gateway/**"
+      - ".github/workflows/camera-gateway-tests.yml"
+  pull_request:
+    paths:
+      - "camera-gateway/**"
+      - ".github/workflows/camera-gateway-tests.yml"
+
+jobs:
+  onvif-discovery-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install gateway dependencies
+        run: pip install -r camera-gateway/requirements.txt
+      - name: Run ONVIF discovery parser tests
+        working-directory: camera-gateway
+        run: python -m unittest -v test_discovery.py
