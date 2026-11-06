@@ -134,8 +134,8 @@ async function camerasPage(){
     const {data,error}=await sb.functions.invoke("camera-gateway",{body:{action:"gateway_status",organization_id:orgId}});
     if(error||!data){gatewayBadge.textContent="Erreur";gatewayText.textContent="Impossible de vérifier la connexion Gateway : "+(error?.message||data?.error||"Erreur inconnue");gatewaySwitch.disabled=true;return}
     gatewaySwitch.disabled=false;gatewaySwitch.checked=data.is_enabled===true;
-    gatewayBadge.textContent="SERVEUR CONNECTÉ";
-    gatewayText.textContent=(data.is_enabled?"معالجة الكاميرات خدامة. ":"معالجة الكاميرات موقوفة، ولكن الاتصال بالسيرفر باقي خدام. ")+"الأجهزة المسجلة: "+data.active_agents+". Serveur : connecté.";
+    gatewayBadge.textContent="SERVEUR DISPONIBLE";
+    gatewayText.textContent=(data.is_enabled?"معالجة الكاميرات خدامة. ":"معالجة الكاميرات موقوفة، ولكن الاتصال بالسيرفر باقي خدام. ")+"الأجهزة المسجلة: "+data.active_agents+" · المتصلة حالياً: "+(data.connected_agents||0)+". السيرفر متاح.";
   };
   await refreshGatewayStatus();
   gatewaySwitch.onchange=async()=>{
