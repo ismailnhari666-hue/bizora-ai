@@ -12,7 +12,7 @@ import json
 import socket
 import time
 import uuid
-import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as ET
 from urllib.parse import unquote, urlparse
 
 MULTICAST_GROUP = "239.255.255.250"
