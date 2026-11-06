@@ -83,18 +83,21 @@ def main() -> int:
     log.info("Bizora Camera Gateway %s started; %d camera(s) configured", VERSION, len(cameras))
     while RUNNING:
         try:
-            api("heartbeat", {"agent_version": VERSION, "capabilities": {"rtsp_probe": True, "opencv": cv2 is not None}})
-            for camera in cameras:
-                try:
-                    online = probe_rtsp(str(camera["rtsp_url"]))
-                    api("camera_probe", {"camera_id": camera["camera_id"], "online": online})
-                    log.info("Camera %s: %s", camera.get("label", camera["camera_id"]), "online" if online else "offline")
-                except Exception as exc:
-                    log.warning("Probe failed for %s: %s", camera.get("label", camera["camera_id"]), exc)
+            status = api("heartbeat", {"agent_version": VERSION, "capabilities": {"rtsp_probe": True, "opencv": cv2 is not None}})
+            if status.get("processing_enabled", True):
+                for camera in cameras:
                     try:
-                        api("camera_probe", {"camera_id": camera["camera_id"], "online": False})
-                    except Exception as api_exc:
-                        log.error("Could not report camera status: %s", api_exc)
+                        online = probe_rtsp(str(camera["rtsp_url"]))
+                        api("camera_probe", {"camera_id": camera["camera_id"], "online": online})
+                        log.info("Camera %s: %s", camera.get("label", camera["camera_id"]), "online" if online else "offline")
+                    except Exception as exc:
+                        log.warning("Probe failed for %s: %s", camera.get("label", camera["camera_id"]), exc)
+                        try:
+                            api("camera_probe", {"camera_id": camera["camera_id"], "online": False})
+                        except Exception as api_exc:
+                            log.error("Could not report camera status: %s", api_exc)
+            else:
+                log.info("Camera processing is paused; server heartbeat remains connected.")
         except Exception as exc:
             log.error("Gateway heartbeat/API error: %s", exc)
         for _ in range(INTERVAL):
