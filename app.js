@@ -270,6 +270,8 @@ async function settingsPage(){
   ]);
   if(error){toast("Erreur paramètres : "+error.message);return}
   const v=s||{is_enabled:false,whatsapp_number:"",send_time:"21:00:00",timezone:"Africa/Casablanca",include_sales:true,include_products:true,include_stock:true,include_orders:true,include_profit:false,whatsapp_opt_in:false};
+  const canRunSalesTest=orgs.some(o=>o.id===orgId&&o.role==="owner");
+  const salesTestPanel=canRunSalesTest?`<div class="panel" style="margin-top:16px"><div class="section-head"><div><h3>اختبار تقرير المبيعات فقط</h3><span class="muted">إرسال تجريبي مستقل، بدون الكاميرات وبدون تفعيل التقرير اليومي.</span></div><span class="badge">اختبار يدوي</span></div><form id="salesTestForm" class="form-grid"><label>رقم WhatsApp الشخصي بصيغة دولية<input name="recipient" type="tel" inputmode="tel" placeholder="+2126XXXXXXXX" required maxlength="20"><small class="muted">الرقم يستعمل لهذا الاختبار فقط ولا يتم حفظه.</small></label><button class="primary" type="submit">معاينة تقرير المبيعات</button></form><div id="salesTestPreview" class="muted" aria-live="polite"></div></div>`:"";
   $("content").innerHTML=`
     <div class="panel">
       <div class="section-head"><div><h3>Rapport quotidien sur WhatsApp</h3><span class="muted">حدد رقمك والساعة والتفاصيل اللي بغيتي توصلك كل نهار.</span></div><span class="badge">WhatsApp Business</span></div>
@@ -291,7 +293,25 @@ async function settingsPage(){
       <p class="notice">الإرسال كيحتاج إعداد حساب WhatsApp Business ديال BIZORA AI وقالب رسالة (Template) مصادق عليه من Meta. خاص صاحب الرقم يوافق على التوصل بالتقارير.</p>
       <p id="dailyReportMsg" class="muted" aria-live="polite"></p>
     </div>
-    <div class="panel"><h3>آخر التقارير</h3>${(deliveries||[]).length?(deliveries||[]).map(x=>`<div class="row"><span>${esc(x.report_date)} — ${esc(x.recipient)}</span><span class="badge">${x.status==="sent"?"تم الإرسال":x.status==="failed"?"فشل الإرسال":"قيد المعالجة"}</span></div>${x.error_message?`<small class="muted">${esc(x.error_message)}</small>`:""}`).join(""):"<p class='muted'>مازال ما تسيفط حتى تقرير.</p>"}</div>`;
+    <div class="panel"><h3>آخر التقارير</h3>${(deliveries||[]).length?(deliveries||[]).map(x=>`<div class="row"><span>${esc(x.report_date)} — ${esc(x.recipient)}</span><span class="badge">${x.status==="sent"?"تم الإرسال":x.status==="failed"?"فشل الإرسال":"قيد المعالجة"}</span></div>${x.error_message?`<small class="muted">${esc(x.error_message)}</small>`:""}`).join(""):"<p class='muted'>مازال ما تسيفط حتى تقرير.</p>"}</div>${salesTestPanel}`;
+  if(canRunSalesTest){
+    let testRecipient="";
+    $("salesTestForm").onsubmit=async e=>{
+      e.preventDefault();const form=new FormData(e.target);testRecipient=String(form.get("recipient")||"").trim();
+      const box=$("salesTestPreview");box.textContent="كنوجد معاينة تقرير المبيعات…";
+      const {data,error}=await sb.functions.invoke("send-sales-test-report",{body:{recipient:testRecipient,confirm_send:false}});
+      if(error||!data?.ok){box.textContent="تعذرت المعاينة: "+(data?.error||error?.message||"خطأ غير معروف");return}
+      box.innerHTML=`<p>عدد المبيعات المكتملة: <b>${Number(data.sales_count||0)}</b> — الإجمالي: <b>${money(data.total_sales||0)}</b></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere;background:#0d1529;padding:13px;border-radius:10px;color:#e7ebfa">${esc(data.message_preview||"")}</pre><p class="notice">راجع الرقم ومحتوى التقرير. لن تُرسل أي رسالة حتى تضغط على زر الإرسال وتؤكد العملية.</p><button type="button" class="primary" id="confirmSalesTest">إرسال التقرير التجريبي الآن</button>`;
+      $("confirmSalesTest").onclick=async()=>{
+        if(!confirm("واش متأكد بغيتي نصيفطو تقرير المبيعات التجريبي لهاد الرقم؟"))return;
+        const button=$("confirmSalesTest");button.disabled=true;button.textContent="جاري الإرسال…";
+        const result=await sb.functions.invoke("send-sales-test-report",{body:{recipient:testRecipient,confirm_send:true}});
+        if(result.error||!result.data?.ok){box.insertAdjacentHTML("beforeend",`<p class="notice">فشل طلب الإرسال: ${esc(result.data?.provider_error||result.data?.error||result.error?.message||"خطأ غير معروف")}</p>`);button.disabled=false;button.textContent="إعادة المحاولة";return}
+        box.insertAdjacentHTML("beforeend",`<p class="notice">${result.data.provider_accepted?"قبلت Meta طلب الإرسال. التوصل الفعلي مازال خاصو تأكيد من WhatsApp.":"الطلب رجع بلا تأكيد قبول الرسالة من Meta."}</p>`);
+        button.remove();
+      };
+    };
+  }
   $("dailyReportSettings").onsubmit=async e=>{
     e.preventDefault();const f=new FormData(e.target),number=String(f.get("whatsapp_number")||"").trim();
     if(f.get("is_enabled")&&(!/^\+?[1-9]\d{7,14}$/.test(number)||!f.has("whatsapp_opt_in"))){toast("دخل رقم صحيح ووافق على التوصل بالتقارير");return}
