@@ -1,0 +1,6 @@
+.env
+.env.*
+cameras.json
+__pycache__/
+.venv/
+*.log
