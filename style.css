@@ -13,3 +13,50 @@
 
 /* Independent camera feature controls */
 .camera-feature-list{margin:14px 0;padding:12px;background:#101a30;border:1px solid var(--line);border-radius:11px}.camera-feature-list> b{display:block;font-size:12px;margin-bottom:8px}.camera-feature{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;margin:0;border-bottom:1px solid #263451;font-size:11px}.camera-feature:last-of-type{border-bottom:0}.camera-feature input{width:19px;height:19px;margin:0;accent-color:var(--purple);flex:none}.camera-feature-list .save-camera-features{width:100%;margin:12px 0 5px}.camera-feature-list small{line-height:1.5}
+
+
+/* Bizora Arabic RTL layout and right-side controls */
+html,body{direction:rtl}
+body{ text-align:right; }
+.app{direction:rtl;grid-template-columns:250px minmax(0,1fr)}
+.sidebar{border-right:0;border-left:1px solid var(--line);text-align:right}
+.brand,.userline,.nav,.topbar,.top-actions,.section-head,.ticket-top,.ticket-bottom{direction:rtl}
+.nav{text-align:right;justify-content:flex-start}
+.nav.active{box-shadow:inset -3px 0 #9b7bff}
+.main{direction:rtl;text-align:right}
+.panel,.stat,.card,.orgbox,.camera-meta,.camera-feature-list,.kitchen-column{text-align:right}
+th,td{text-align:right}
+.section-head{gap:12px}
+.section-head>div{min-width:0}
+.form-grid,.inline-form{direction:rtl}
+.form-grid{justify-items:stretch}
+.form-grid>button,.inline-form>button{justify-self:start}
+label:has(input[type="checkbox"]){display:flex;flex-direction:row-reverse;align-items:center;justify-content:flex-end;gap:10px;text-align:right;line-height:1.6}
+label input[type="checkbox"]{display:inline-block;width:19px;height:19px;min-width:19px;margin:0;accent-color:var(--purple);flex:none}
+.camera-feature{direction:rtl;flex-direction:row-reverse;justify-content:space-between;text-align:right}
+.camera-feature>span{flex:1;text-align:right}
+.camera-feature input{margin:0}
+.camera-feature-list>button,.camera-meta>button{display:block;margin-right:0;margin-left:auto}
+.camera-feature-list .save-camera-features{width:100%}
+.gateway-toggle{display:flex;flex-direction:row-reverse;justify-content:flex-end;align-items:center;gap:10px}
+.gateway-toggle input{width:19px;height:19px;margin:0;flex:none}
+.pairing-actions{direction:rtl;justify-content:flex-start}
+.pairing-steps{direction:rtl}
+.ai-tabs{direction:rtl}
+.ai-two-col,.camera-grid,.ai-feature-grid{direction:rtl}
+.ai-report{direction:rtl}
+.table-wrap{direction:rtl}
+.toast{right:auto;left:20px;text-align:right}
+input,select{direction:rtl;text-align:right}
+input[type="email"],input[type="tel"],input[type="number"],input[type="time"]{direction:ltr;text-align:left}
+@media(max-width:900px){
+ .app{grid-template-columns:minmax(0,1fr)}
+ .sidebar{border-left:0;border-bottom:1px solid var(--line)}
+ nav{direction:rtl}
+ .nav{direction:rtl}
+}
+@media(max-width:520px){
+ .form-grid{grid-template-columns:1fr}
+ .section-head{align-items:flex-start}
+ .topbar{direction:rtl}
+}
