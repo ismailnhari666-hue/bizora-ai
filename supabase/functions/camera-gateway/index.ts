@@ -30,7 +30,9 @@ Deno.serve(async(req)=>{
    const {data:setting,error}=await admin.from("camera_gateway_settings").select("is_enabled,updated_at").eq("organization_id",auth.organizationId).maybeSingle();
    if(error)return json({error:"Could not load Gateway settings"},500);
    const {count}=await admin.from("camera_gateway_agents").select("id",{count:"exact",head:true}).eq("organization_id",auth.organizationId).neq("status","disabled");
-   return json({is_enabled:setting?.is_enabled===true,updated_at:setting?.updated_at||null,active_agents:count||0});
+   const onlineSince=new Date(Date.now()-180000).toISOString();
+   const {count:connected}=await admin.from("camera_gateway_agents").select("id",{count:"exact",head:true}).eq("organization_id",auth.organizationId).eq("status","online").gt("last_seen_at",onlineSince);
+   return json({is_enabled:setting?.is_enabled===true,updated_at:setting?.updated_at||null,active_agents:count||0,connected_agents:connected||0,server_available:true});
   }
   if(typeof body.is_enabled!=="boolean")return json({error:"is_enabled must be boolean"},400);
   const {error}=await admin.from("camera_gateway_settings").upsert({organization_id:auth.organizationId,is_enabled:body.is_enabled,updated_by:auth.user.id,updated_at:new Date().toISOString()},{onConflict:"organization_id"});
@@ -59,11 +61,15 @@ Deno.serve(async(req)=>{
  const {data:a}=await admin.from("camera_gateway_agents").select("id,organization_id,branch_id,status").eq("token_hash",await sha256(token)).maybeSingle();
  if(!a||a.status==="disabled")return json({error:"Invalid or disabled gateway token"},401);
  const {data:gatewaySetting}=await admin.from("camera_gateway_settings").select("is_enabled").eq("organization_id",a.organization_id).maybeSingle();
- if(!gatewaySetting?.is_enabled)return json({error:"Gateway is disabled for this organization"},403);
+ const processingEnabled=gatewaySetting?.is_enabled===true;
  if(action==="heartbeat"){
-  const {error}=await admin.from("camera_gateway_agents").update({status:"online",last_seen_at:new Date().toISOString(),agent_version:String(body.agent_version||"").slice(0,40),capabilities:body.capabilities&&typeof body.capabilities==="object"?body.capabilities:{},updated_at:new Date().toISOString()}).eq("id",a.id);
+  const now=new Date().toISOString();
+  const {error}=await admin.from("camera_gateway_agents").update({status:"online",last_seen_at:now,agent_version:String(body.agent_version||"").slice(0,40),capabilities:body.capabilities&&typeof body.capabilities==="object"?body.capabilities:{},updated_at:now}).eq("id",a.id);
   if(error)return json({error:"Heartbeat update failed"},500);
-  return json({ok:true,agent_id:a.id,server_time:new Date().toISOString()});
+  return json({ok:true,agent_id:a.id,server_connected:true,processing_enabled:processingEnabled,server_time:now});
+ }
+ if(!processingEnabled&&(action==="camera_probe"||action==="event")){
+  return json({ok:true,paused:true,server_connected:true,message:"Camera processing is paused; Gateway heartbeat remains connected."},202);
  }
  if(action==="camera_probe"){
   const cameraId=String(body.camera_id||"");
