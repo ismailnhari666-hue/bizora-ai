@@ -1,5 +1,5 @@
-const CACHE_NAME = "bizora-shell-v36";
-const APP_SHELL = ["./", "./index.html", "./style.css?v=20261107-owner-dashboard03", "./app.js?v=20261107-owner-dashboard03", "./locale.js?v=20261107-owner-dashboard03", "./manifest.webmanifest", "./icons/bizora-icon.svg"];
+const CACHE_NAME = "bizora-shell-v37";
+const APP_SHELL = ["./", "./index.html", "./style.css?v=20261107-clean-dashboard01", "./app.js?v=20261107-clean-dashboard01", "./locale.js?v=20261107-clean-dashboard01", "./manifest.webmanifest", "./icons/bizora-icon.svg"];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
 });
