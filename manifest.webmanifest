@@ -1,17 +1,22 @@
 {
   "id": "./",
-  "name": "BIZORA AI",
-  "short_name": "BIZORA",
-  "description": "Plateforme intelligente de gestion d'entreprise.",
-  "lang": "fr",
+  "name": "Bizora Digital",
+  "short_name": "Bizora",
+  "description": "منصة ذكية لإدارة المبيعات والمنتجات والطلبات وتحليل نشاطك التجاري.",
+  "lang": "ar",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0b1020",
-  "theme_color": "#10152d",
+  "background_color": "#f3f6fb",
+  "theme_color": "#f3f6fb",
   "icons": [
-    { "src": "icons/bizora-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/bizora-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
-  ]
+    {
+      "src": "icons/bizora-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "dir": "rtl"
 }
