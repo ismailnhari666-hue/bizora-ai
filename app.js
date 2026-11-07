@@ -53,7 +53,7 @@ async function overview(){
     <div class="dashboard-lower">
       <section class="panel dashboard-recent">
         <div class="section-head"><div><h3>آخر المبيعات</h3><span class="muted">أحدث 8 عمليات بيع اليوم</span></div><button class="secondary" onclick="loadPage('sales')">عرض المبيعات</button></div>
-        <div class="table-wrap">${recentRows.length?`<table><thead><tr><th>المرجع</th><th>الوقت</th><th>المبلغ</th></tr></thead><tbody>${recentRows.map(row=>`<tr><td><b>#${row.id.slice(0,8).toUpperCase()}</b></td><td>${new Date(row.created_at).toLocaleTimeString("ar-MA",{hour:"2-digit",minute:"2-digit"})}</td><td><b>${money(row.total)}</b></td></tr>`).join("")}</tbody></table>`:'<div class="empty">لا توجد مبيعات اليوم. سجّل أول عملية بيع باش تبان هنا.</div>'}</div>
+        <div class="table-wrap">${recentRows.length?`<table><thead><tr><th>المرجع</th><th>الوقت</th><th>المبلغ</th></tr></thead><tbody>${recentRows.map(row=>`<tr><td><b>#${row.id.slice(0,8).toUpperCase()}</b></td><td>${new Date(row.created_at).toLocaleTimeString(window.BizoraI18n?.locale||"ar-MA",{hour:"2-digit",minute:"2-digit"})}</td><td><b>${money(row.total)}</b></td></tr>`).join("")}</tbody></table>`:'<div class="empty">لا توجد مبيعات اليوم. سجّل أول عملية بيع باش تبان هنا.</div>'}</div>
       </section>
       <aside class="dashboard-side">
         <section class="panel dashboard-orders"><span class="dashboard-kicker">متابعة الطلبات</span><strong>${pending}</strong><h3>طلبات جارية</h3><p class="muted">طلبات تنتظر التحضير أو التسليم.</p><button class="secondary" onclick="loadPage('orders')">تدبير الطلبات</button></section>
