@@ -20,12 +20,16 @@ async function loadOrganizations(preselect){const {data,error}=await sb.from("me
 function heading(title){$("pageTitle").textContent=title;document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===currentPage))}
 async function loadPage(page){if(!orgId)return;currentPage=page;const names={overview:"لوحة القيادة",products:"المنتجات والمخزون",sales:"المبيعات",orders:"الطلبات",cameras:"الكاميرات",reports:"التقارير",settings:"الإعدادات"};heading(names[page]||"Vue générale");if(page==="overview")return overview();if(page==="products")return productPage();if(page==="sales")return salesPage();if(page==="orders")return ordersPage();if(page==="cameras")return camerasPage();if(page==="reports")return reportsPage();if(page==="settings")return settingsPage()}
 async function overview(){
+  const lang=window.BizoraI18n?.language||"ar";
+  const tr=(ar,fr,en,es,de,zh)=>({ar,fr,en,es,de,"zh-CN":zh})[lang]||ar;
   const startOfDay=new Date();
   startOfDay.setHours(0,0,0,0);
   const since=startOfDay.toISOString();
+  const weekStart=new Date(startOfDay);weekStart.setDate(weekStart.getDate()-6);
+  const weekSince=weekStart.toISOString();
   const [productResult,salesResult,recentResult,orderResult,itemResult]=await Promise.all([
     sb.from("products").select("id,name,stock_quantity,low_stock_threshold").eq("organization_id",orgId).eq("is_active",true),
-    sb.from("sales").select("id,total,created_at").eq("organization_id",orgId).eq("status","completed").gte("created_at",since),
+    sb.from("sales").select("id,total,created_at").eq("organization_id",orgId).eq("status","completed").gte("created_at",weekSince),
     sb.from("sales").select("id,total,created_at").eq("organization_id",orgId).eq("status","completed").gte("created_at",since).order("created_at",{ascending:false}).limit(8),
     sb.from("orders").select("id,status").eq("organization_id",orgId),
     sb.from("sale_items").select("product_name,quantity,line_total,sales!inner(organization_id,status,created_at)").eq("sales.organization_id",orgId).eq("sales.status","completed").gte("sales.created_at",new Date(Date.now()-7*86400000).toISOString())
@@ -40,10 +44,14 @@ async function overview(){
   const bestMap=new Map();
   itemRows.forEach(row=>{const name=String(row.product_name||"—");const item=bestMap.get(name)||{quantity:0,total:0};item.quantity+=Number(row.quantity||0);item.total+=Number(row.line_total||0);bestMap.set(name,item)});
   const bestProducts=[...bestMap.entries()].sort((a,b)=>b[1].quantity-a[1].quantity).slice(0,5);
-  const revenue=salesRows.reduce((sum,row)=>sum+Number(row.total||0),0);
+  const todaySalesRows=salesRows.filter(row=>new Date(row.created_at)>=startOfDay);
+  const revenue=todaySalesRows.reduce((sum,row)=>sum+Number(row.total||0),0);
   const low=productRows.filter(row=>Number(row.stock_quantity||0)<=Number(row.low_stock_threshold||0)).length;
   const pending=orderRows.filter(row=>["pending","preparing","ready"].includes(row.status)).length;
-  const average=salesRows.length?revenue/salesRows.length:0;
+  const average=todaySalesRows.length?revenue/todaySalesRows.length:0;
+  const dailyBuckets=Array.from({length:7},(_,i)=>{const day=new Date(weekStart);day.setDate(weekStart.getDate()+i);return {day,total:salesRows.filter(row=>new Date(row.created_at).toDateString()===day.toDateString()).reduce((sum,row)=>sum+Number(row.total||0),0)}});
+  const maxDaily=Math.max(1,...dailyBuckets.map(x=>x.total));
+  const chartHtml=dailyBuckets.map(x=>`<div class="dashboard-bar-item"><b>${x.total?money(x.total):"—"}</b><div class="dashboard-bar-track"><span style="height:${Math.max(x.total?7:2,x.total/maxDaily*100)}%"></span></div><small>${new Intl.DateTimeFormat(window.BizoraI18n?.locale||"ar-MA",{weekday:"short"}).format(x.day)}</small></div>`).join("");
   $("content").innerHTML=`
     <section class="dashboard-welcome">
       <div><span class="dashboard-kicker">ملخص النشاط التجاري</span><h2>مرحباً بك في Bizora Digital</h2><p>نظرة سريعة على أداء مؤسستك اليوم.</p></div>
@@ -51,16 +59,17 @@ async function overview(){
     </section>
     <div class="grid dashboard-stats">
       <article class="stat"><div class="stat-icon">د.م</div><small>مداخيل اليوم</small><strong>${money(revenue)}</strong><em>مجموع المبيعات المسجلة اليوم</em></article>
-      <article class="stat"><div class="stat-icon">↗</div><small>عدد المبيعات</small><strong>${salesRows.length}</strong><em>متوسط البيع: ${money(average)}</em></article>
+      <article class="stat"><div class="stat-icon">↗</div><small>عدد المبيعات</small><strong>${todaySalesRows.length}</strong><em>متوسط البيع: ${money(average)}</em></article>
       <article class="stat"><div class="stat-icon">▦</div><small>المنتجات النشطة</small><strong>${productRows.length}</strong><em>المنتجات المتاحة في اللائحة</em></article>
       <article class="stat"><div class="stat-icon">${low?"!":"✓"}</div><small>تنبيهات المخزون</small><strong>${low}</strong><em class="${low?"danger":"positive"}">${low?"منتجات وصلت للحد الأدنى":"المخزون دون تنبيهات"}</em></article>
     </div>
+    <section class="panel dashboard-chart-panel"><div class="section-head"><div><h3>${tr("المبيعات خلال آخر 7 أيام","Ventes des 7 derniers jours","Sales over the last 7 days","Ventas de los últimos 7 días","Umsatz der letzten 7 Tage","最近 7 天销售额")}</h3><span class="muted">${tr("الإيرادات اليومية من المبيعات المكتملة","Revenus quotidiens des ventes terminées","Daily revenue from completed sales","Ingresos diarios de ventas completadas","Täglicher Umsatz aus abgeschlossenen Verkäufen","已完成销售的每日收入")}</span></div></div><div class="dashboard-chart">${chartHtml}</div></section>
     <div class="dashboard-lower">
       <section class="panel dashboard-recent">
         <div class="section-head"><div><h3>آخر المبيعات</h3><span class="muted">أحدث 8 عمليات بيع اليوم</span></div><button class="secondary" onclick="loadPage('sales')">عرض المبيعات</button></div>
         <div class="table-wrap">${recentRows.length?`<table><thead><tr><th>المرجع</th><th>الوقت</th><th>المبلغ</th></tr></thead><tbody>${recentRows.map(row=>`<tr><td><b>#${row.id.slice(0,8).toUpperCase()}</b></td><td>${new Date(row.created_at).toLocaleTimeString(window.BizoraI18n?.locale||"ar-MA",{hour:"2-digit",minute:"2-digit"})}</td><td><b>${money(row.total)}</b></td></tr>`).join("")}</tbody></table>`:'<div class="empty">لا توجد مبيعات اليوم. سجّل أول عملية بيع باش تبان هنا.</div>'}</div>
       </section>
-      <section class="panel dashboard-best"><div class="section-head"><div><h3>المنتجات الأكثر مبيعاً</h3><span class="muted">حسب الكمية خلال آخر 7 أيام</span></div></div>${bestProducts.length?bestProducts.map((item,index)=>`<div class="dashboard-product-row"><span class="dashboard-rank">${index+1}</span><b>${esc(item[0])}</b><small>${item[1].quantity} وحدة</small><strong>${money(item[1].total)}</strong></div>`).join(""):'<div class="empty">لا توجد بيانات مبيعات كافية بعد.</div>'}</section>
+      <section class="panel dashboard-best"><div class="section-head"><div><h3>${tr("المنتجات الأكثر مبيعاً","Produits les plus vendus","Top-selling products","Productos más vendidos","Meistverkaufte Produkte","畅销商品")}</h3><span class="muted">${tr("حسب الكمية خلال آخر 7 أيام","Par quantité sur les 7 derniers jours","By quantity over the last 7 days","Por cantidad en los últimos 7 días","Nach Menge der letzten 7 Tage","按最近 7 天销量排序")}</span></div></div>${bestProducts.length?bestProducts.map((item,index)=>`<div class="dashboard-product-row"><span class="dashboard-rank">${index+1}</span><b>${esc(item[0])}</b><small>${item[1].quantity} ${tr("وحدة","unités","units","unidades","Einheiten","件")}</small><strong>${money(item[1].total)}</strong></div>`).join(""):'<div class="empty">لا توجد بيانات مبيعات كافية بعد.</div>'}</section>
       <aside class="dashboard-side">
         <section class="panel dashboard-orders"><span class="dashboard-kicker">متابعة الطلبات</span><strong>${pending}</strong><h3>طلبات جارية</h3><p class="muted">طلبات تنتظر التحضير أو التسليم.</p><button class="secondary" onclick="loadPage('orders')">تدبير الطلبات</button></section>
         <section class="panel dashboard-shortcuts"><h3>اختصارات سريعة</h3><button onclick="loadPage('products')"><span>▦</span> المنتجات والمخزون <b>←</b></button><button onclick="loadPage('reports')"><span>▤</span> التقارير <b>←</b></button><button onclick="loadPage('cameras')"><span>◉</span> الكاميرات <b>←</b></button></section>
