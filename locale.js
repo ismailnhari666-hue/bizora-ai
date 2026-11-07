@@ -159,6 +159,34 @@ const EXTRA2=[
 ];
 L.forEach((x,i)=>EXTRA2.forEach(row=>{if(MAP[x[0]][row[0]]===undefined)MAP[x[0]][row[0]]=row[i+1];}));
 
+const EXTRA_CAMERA=[
+["Vue générale","نظرة عامة","Vue générale","Overview","Vista general","Übersicht","概览"],
+["Suivi des passages entrée / sortie","تتبع الدخول والخروج","Suivi des passages entrée / sortie","Entry / exit tracking","Seguimiento de entradas y salidas","Ein- und Austrittsverfolgung","进出跟踪"],
+["Comptage des visiteurs uniques","عد الزوار","Comptage des visiteurs uniques","Unique visitor count","Recuento de visitantes únicos","Zählung eindeutiger Besucher","独立访客计数"],
+["Comptage des tables occupées / libres","عد الطاولات المشغولة والفارغة","Comptage des tables occupées / libres","Occupied / free table count","Recuento de mesas ocupadas / libres","Zählung belegter / freier Tische","已占用 / 空闲桌台计数"],
+["Comptage des repas servis","عد الوجبات المقدمة","Comptage des repas servis","Meals served count","Recuento de comidas servidas","Zählung servierter Mahlzeiten","已出餐数量"],
+["Comptage des boissons servies","عد المشروبات المقدمة","Comptage des boissons servies","Drinks served count","Recuento de bebidas servidas","Zählung servierter Getränke","已出饮品数量"],
+["Détection de file d’attente","اكتشاف طابور الانتظار","Détection de file d’attente","Queue detection","Detección de colas","Warteschlangenerkennung","排队检测"],
+["Analyse d’occupation de zone","تحليل إشغال المنطقة","Analyse d’occupation de zone","Zone occupancy analytics","Análisis de ocupación de zona","Bereichsauslastungsanalyse","区域占用分析"],
+["Fonctions indépendantes","وظائف مستقلة","Fonctions indépendantes","Independent features","Funciones independientes","Unabhängige Funktionen","独立功能"],
+["Plan des tables — cette caméra","مخطط الطاولات — هذه الكاميرا","Plan des tables — cette caméra","Table layout — this camera","Plano de mesas — esta cámara","Tischplan — diese Kamera","桌台布局 — 此摄像头"],
+["AI Shop Intelligence","ذكاء المتجر الاصطناعي","AI Shop Intelligence","AI Shop Intelligence","Inteligencia de tienda con IA","KI-Shop-Intelligenz","AI 商店智能"],
+["Surveillance, activité commerciale et opérations réunies dans un seul centre de contrôle.","المراقبة والنشاط التجاري والعمليات في مركز تحكم واحد.","Surveillance, activité commerciale et opérations réunies dans un seul centre de contrôle.","Monitoring, business activity, and operations in one control center.","Supervisión, actividad comercial y operaciones en un solo centro de control.","Überwachung, Geschäftsaktivität und Abläufe in einer zentralen Steuerung.","在一个控制中心整合监控、业务活动和运营。"],
+["Vue intelligente","عرض ذكي","Vue intelligente","Smart view","Vista inteligente","Intelligente Ansicht","智能视图"],
+["Contrôle caisse","مراقبة الصندوق","Contrôle caisse","Cash control","Control de caja","Kassenkontrolle","收银管理"],
+["Stock intelligent","مخزون ذكي","Stock intelligent","Smart stock","Inventario inteligente","Intelligentes Lager","智能库存"],
+["Heures d’activité","ساعات النشاط","Heures d’activité","Activity hours","Horas de actividad","Aktivitätsstunden","活动时段"],
+["Analyse opérationnelle","تحليل العمليات","Analyse opérationnelle","Operational analysis","Análisis operativo","Betriebsanalyse","运营分析"],
+["Gestion des caméras","إدارة الكاميرات","Gestion des caméras","Camera management","Gestión de cámaras","Kameraverwaltung","摄像头管理"],
+["Scanner QR avec la caméra du téléphone","مسح QR بكاميرا الهاتف","Scanner QR avec la caméra du téléphone","Scan QR with phone camera","Escanear QR con la cámara del teléfono","QR mit der Handykamera scannen","使用手机摄像头扫描二维码"],
+["Rechercher sur le réseau (Gateway)","البحث في الشبكة (Gateway)","Rechercher sur le réseau (Gateway)","Search network (Gateway)","Buscar en la red (Gateway)","Netzwerk durchsuchen (Gateway)","搜索网络（Gateway）"],
+["Enregistrer l’appareil","حفظ الجهاز","Enregistrer l’appareil","Save device","Guardar dispositivo","Gerät speichern","保存设备"],
+["Nom du Gateway","اسم Gateway","Nom du Gateway","Gateway name","Nombre del Gateway","Gateway-Name","Gateway 名称"],
+["Contrôle du Gateway","التحكم في Gateway","Contrôle du Gateway","Gateway control","Control del Gateway","Gateway-Steuerung","Gateway 控制"],
+["Aucune caméra ajoutée.","لم تتم إضافة أي كاميرا.","Aucune caméra ajoutée.","No cameras added.","No se han añadido cámaras.","Keine Kameras hinzugefügt.","尚未添加摄像头."]
+];
+L.forEach((x,i)=>EXTRA_CAMERA.forEach(row=>{if(MAP[x[0]][row[0]]===undefined)MAP[x[0]][row[0]]=row[i+1];}));
+
 const dictionary=()=>({...words[current],...MAP[current]});
 function translate(node){if(node.nodeType!==Node.TEXT_NODE||!node.nodeValue.trim())return;const source=originals.get(node)||node.nodeValue;originals.set(node,source);let s=source;Object.keys(dictionary()).sort((a,b)=>b.length-a.length).forEach(k=>s=s.split(k).join(dictionary()[k]));if(s!==node.nodeValue)node.nodeValue=s;}
 function apply(root=document.body){if(!root)return;if(root.nodeType===Node.TEXT_NODE){translate(root);return}const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);while(w.nextNode())translate(w.currentNode);if(root.querySelectorAll){const nodes=[...(root.matches?.("[placeholder],[title],[aria-label]")?[root]:[]),...root.querySelectorAll("[placeholder],[title],[aria-label]")];nodes.forEach(el=>["placeholder","title","aria-label"].forEach(attr=>{if(!el.hasAttribute(attr))return;let old=originalAttrs.get(el);if(!old){old={};originalAttrs.set(el,old)}if(!(attr in old))old[attr]=el.getAttribute(attr);let value=old[attr];Object.keys(dictionary()).sort((a,b)=>b.length-a.length).forEach(k=>value=value.split(k).join(dictionary()[k]));el.setAttribute(attr,value)}))}}
