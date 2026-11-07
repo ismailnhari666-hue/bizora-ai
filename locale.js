@@ -218,6 +218,8 @@ const EXTRA_CAMERA=[
 ["Contrôle du Gateway","التحكم في Gateway","Contrôle du Gateway","Gateway control","Control del Gateway","Gateway-Steuerung","Gateway 控制"],
 ["Réapprovisionnement","إعادة التزويد","Réapprovisionnement","Restocking","Reposición","Nachbestellung","补货"],
 ["Export des ventes","تصدير المبيعات","Export des ventes","Sales export","Exportar ventas","Verkaufsexport","销售导出"],
+,
+["Nom du produit","اسم المنتوج","Nom du produit","Product name","Nombre del producto","Produktname","商品名称"]
 ];
 L.forEach((x,i)=>EXTRA_CAMERA.forEach(row=>{if(!x||!row||!row[0]||!MAP[x[0]])return;if(MAP[x[0]][row[0]]===undefined)MAP[x[0]][row[0]]=row[i+1];}));
 
