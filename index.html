@@ -3,24 +3,24 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#10152d"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/bizora-icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icons/bizora-icon.svg"><meta name="description" content="Bizora Digital — plateforme intelligente de gestion d'entreprise.">
-<title>Bizora Digital</title><link rel="stylesheet" href="style.css?v=20261107-pro01">
+<title>Bizora Digital</title><link rel="stylesheet" href="style.css?v=20261107-dashboard01">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div id="authView" class="auth-wrap"><section class="auth-card">
-<div class="brand-mark">B</div><p class="eyebrow">BUSINESS INTELLIGENCE PLATFORM</p><h1>BIZORA <span>AI</span></h1><p class="muted">كل نشاطك التجاري تحت السيطرة.</p><button class="primary full" id="installApp">تثبيت Bizora</button>
+<div class="brand-mark">B</div><p class="eyebrow">BUSINESS INTELLIGENCE PLATFORM</p><h1>Bizora <span>Digital</span></h1><p class="muted">كل نشاطك التجاري تحت السيطرة.</p><button class="primary full" id="installApp">تثبيت Bizora</button>
 <div class="tabs"><button class="tab active" data-mode="login">تسجيل الدخول</button><button class="tab" data-mode="signup">إنشاء حساب</button></div>
 <form id="authForm"><label>Email<input id="email" type="email" autocomplete="email" required placeholder="vous@entreprise.com"></label><label>Mot de passe<input id="password" type="password" minlength="6" required autocomplete="current-password" placeholder="••••••••"></label><button class="primary full" id="authSubmit">دخول</button></form><p id="authMsg" class="notice"></p>
 </section></div>
 <div id="appView" class="app hidden"><aside class="sidebar">
-<div class="brand"><span class="brand-mark small">B</span><div><b>BIZORA <i>AI</i></b><small>BUSINESS MANAGEMENT</small></div></div>
+<div class="brand"><span class="brand-mark small">B</span><div><b>Bizora <i>Digital</i></b><small>BUSINESS MANAGEMENT</small></div></div>
 <div class="orgbox"><small>مساحة العمل</small><select id="orgSelect"></select></div>
 <nav><button class="nav active" data-page="overview">◫ <span>لوحة القيادة</span></button><button class="nav" data-page="products">▦ <span>المنتجات والمخزون</span></button><button class="nav" data-page="sales">↗ <span>المبيعات</span></button><button class="nav" data-page="orders">☷ <span>الطلبات</span></button><button class="nav" data-page="cameras">◉ <span>الكاميرات</span></button><button class="nav" data-page="reports">▤ <span>التقارير</span></button><button class="nav" data-page="settings">⚙ <span>الإعدادات</span></button></nav>
 <div class="side-bottom"><div class="userline"><div class="avatar" id="avatar">U</div><div><b id="userEmail">Utilisateur</b><small>الحساب متصل</small></div></div><button id="logout" class="ghost full">تسجيل الخروج</button></div>
 </aside><main class="main"><header class="topbar"><div><p class="eyebrow">مركز إدارة النشاط</p><h2 id="pageTitle">لوحة القيادة</h2></div><div class="top-actions"><button class="primary" id="installAppDashboard">تثبيت Bizora</button><span class="status"><i></i> قاعدة البيانات متصلة</span><button class="icon-btn" id="refresh">↻</button></div></header>
-<section id="orgSetup" class="panel hidden"><h3>Bienvenue dans Bizora Digital</h3><p class="muted">Créez votre organisation pour commencer à gérer votre activité.</p><form id="orgForm" class="inline-form"><input id="orgName" required placeholder="اسم المؤسسة"><button class="primary">إنشاء مساحة العمل</button></form><p id="orgMsg" class="notice"></p></section>
+<section id="orgSetup" class="panel hidden"><h3>مرحباً بك في Bizora Digital</h3><p class="muted">أنشئ مساحة العمل ديال المؤسسة باش تبدا تدير النشاط التجاري.</p><form id="orgForm" class="inline-form"><input id="orgName" required placeholder="اسم المؤسسة"><button class="primary">إنشاء مساحة العمل</button></form><p id="orgMsg" class="notice"></p></section>
 <section id="content"></section><footer>Bizora Digital <span>•</span> إدارة ذكية لنشاطك التجاري</footer></main></div>
-<div id="toast" class="toast"></div><script src="app.js?v=20261107-menu01"></script>
+<div id="toast" class="toast"></div><script src="app.js?v=20261107-dashboard01"></script>
 <script>
 let bizoraInstallPrompt = null;
 const installButtons = [document.getElementById("installApp"), document.getElementById("installAppDashboard")].filter(Boolean);
