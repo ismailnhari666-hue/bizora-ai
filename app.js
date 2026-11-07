@@ -97,7 +97,7 @@ async function productPage(showArchived=false){
         <tr data-name="${esc(p.name.toLowerCase())}" data-type="${esc(p.item_type||"food")}" data-category="${esc(p.category||"")}">
           <td><b>${esc(p.name)}</b></td><td><span class="badge">${p.item_type==="drink"?"مشروب":"وجبة"}</span></td><td>${esc(p.category||"—")}</td><td><b>${money(p.unit_price)}</b></td><td>${Number(p.stock_quantity||0)}</td>
           <td><div class="row" style="gap:6px;flex-wrap:wrap"><button type="button" class="secondary edit-product" data-id="${p.id}">تعديل</button><button type="button" class="secondary archive-product" data-id="${p.id}">${showArchived?"استرجاع":"إخفاء"}</button></div></td>
-        </tr>`).join(""):'<tr><td colspan="6" class="empty">مازال ما زدتي حتى منتج. استعمل الاستمارة لإضافة أول مأكولة أو مشروب.</td></tr>'}</tbody></table></div>
+        </tr>`).join(""):'<tr><td colspan="6" class="empty">لم تتم إضافة أي منتج بعد. استخدم النموذج لإضافة أول وجبة أو مشروب.</td></tr>'}</tbody></table></div>
     </div>`;
   $("toggleArchived").onclick=()=>productPage(!showArchived);
   const form=$("productForm");
