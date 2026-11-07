@@ -18,7 +18,7 @@ document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>loadPage(b.dataset.pa
 async function boot(){const {data:{session}}=await sb.auth.getSession();user=session?.user||null;if(!user){window.BizoraI18n?.mount("guest");$("authView").classList.remove("hidden");$("appView").classList.add("hidden");return}$("authView").classList.add("hidden");$("appView").classList.remove("hidden");$("userEmail").textContent=user.email||"Utilisateur";$("avatar").textContent=(user.email||"U")[0].toUpperCase();window.BizoraI18n?.mount(user.id);await loadOrganizations()}
 async function loadOrganizations(preselect){const {data,error}=await sb.from("memberships").select("organization_id,role,organizations(id,name,currency)").eq("user_id",user.id).eq("is_active",true);if(error){toast(error.message);return}orgs=(data||[]).map(x=>({...x.organizations,role:x.role})).filter(Boolean);$("orgSelect").innerHTML=orgs.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join("");orgId=preselect||orgs[0]?.id||null;if(orgId)$("orgSelect").value=orgId;$("orgSetup").classList.toggle("hidden",!!orgId);if(orgId)await loadPage(currentPage);else $("content").innerHTML=""}
 function heading(title){$("pageTitle").textContent=title;document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===currentPage))}
-async function loadPage(page){if(!orgId)return;currentPage=page;const names={overview:"لوحة القيادة",products:"المنتجات والمخزون",sales:"المبيعات",orders:"الطلبات",cameras:"الكاميرات",reports:"التقارير",settings:"الإعدادات"};heading(names[page]||"Vue générale");if(page==="overview")return overview();if(page==="products")return productPage();if(page==="sales")return salesPage();if(page==="orders")return ordersPage();if(page==="cameras")return camerasPage();if(page==="reports")return reportsPage();if(page==="settings")return settingsPage()}
+async function loadPage(page){if(!orgId)return;currentPage=page;document.querySelector(".topbar")?.classList.toggle("hidden",page==="overview");const names={overview:"لوحة القيادة",products:"المنتجات والمخزون",sales:"المبيعات",orders:"الطلبات",cameras:"الكاميرات",reports:"التقارير",settings:"الإعدادات"};heading(names[page]||"Vue générale");if(page==="overview")return overview();if(page==="products")return productPage();if(page==="sales")return salesPage();if(page==="orders")return ordersPage();if(page==="cameras")return camerasPage();if(page==="reports")return reportsPage();if(page==="settings")return settingsPage()}
 async function overview(){
   const lang=window.BizoraI18n?.language||"ar";
   const tr=(ar,fr,en,es,de,zh)=>({ar,fr,en,es,de,"zh-CN":zh})[lang]||ar;
@@ -53,10 +53,6 @@ async function overview(){
   const maxDaily=Math.max(1,...dailyBuckets.map(x=>x.total));
   const chartHtml=dailyBuckets.map(x=>`<div class="dashboard-bar-item"><b>${x.total?money(x.total):"—"}</b><div class="dashboard-bar-track"><span style="height:${Math.max(x.total?7:2,x.total/maxDaily*100)}%"></span></div><small>${new Intl.DateTimeFormat(window.BizoraI18n?.locale||"ar-MA",{weekday:"short"}).format(x.day)}</small></div>`).join("");
   $("content").innerHTML=`
-    <section class="dashboard-welcome">
-      <div><span class="dashboard-kicker">ملخص النشاط التجاري</span><h2>مرحباً بك في Bizora Digital</h2><p>نظرة سريعة على أداء مؤسستك اليوم.</p></div>
-      <p class="dashboard-owner-note">من هنا تقدر تراقب نشاط مؤسستك ومبيعاتك ومخزونك والطلبات.</p>
-    </section>
     <div class="grid dashboard-stats">
       <article class="stat"><div class="stat-icon">د.م</div><small>مداخيل اليوم</small><strong>${money(revenue)}</strong><em>مجموع المبيعات المسجلة اليوم</em></article>
       <article class="stat"><div class="stat-icon">↗</div><small>عدد المبيعات</small><strong>${todaySalesRows.length}</strong><em>متوسط البيع: ${money(average)}</em></article>
