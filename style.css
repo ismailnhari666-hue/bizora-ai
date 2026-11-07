@@ -115,3 +115,14 @@ table{border-collapse:separate;border-spacing:0}th,td{border-bottom:1px solid #e
 @media(max-width:900px){[dir="ltr"] .sidebar{border-right:0;border-bottom:1px solid var(--line)}}
 
 html[lang="ar"] body{font-family:"Noto Sans Arabic",Inter,Arial,sans-serif}html[lang="zh-CN"] body{font-family:"Noto Sans SC",Inter,Arial,sans-serif}.language-quick{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 18px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}.language-quick label{font-weight:700;font-size:12px;color:var(--muted)}.language-quick select{min-width:135px;max-width:180px;background:var(--panel);color:var(--text)}html[dir="ltr"] input,html[dir="ltr"] select,html[dir="ltr"] textarea{direction:ltr;text-align:left}html[dir="rtl"] input,html[dir="rtl"] select,html[dir="rtl"] textarea{direction:rtl;text-align:right}
+
+
+/* Correct locale direction across the entire application shell. */
+html[dir="ltr"],html[dir="ltr"] body,html[dir="ltr"] body .app,html[dir="ltr"] body .main,html[dir="ltr"] body .sidebar,html[dir="ltr"] body .panel,html[dir="ltr"] body .stat,html[dir="ltr"] body .card,html[dir="ltr"] body .orgbox,html[dir="ltr"] body .form-grid,html[dir="ltr"] body .inline-form,html[dir="ltr"] body .table-wrap,html[dir="ltr"] body .kitchen-board,html[dir="ltr"] body .ai-tabs,html[dir="ltr"] body .camera-grid,html[dir="ltr"] body .dashboard-lower{direction:ltr;text-align:left}
+html[dir="ltr"] body .nav,html[dir="ltr"] body .dashboard-shortcuts button{direction:ltr;text-align:left;justify-content:flex-start}
+html[dir="ltr"] body .nav.active{box-shadow:inset 3px 0 #35c5a2}
+html[dir="ltr"] body label:has(input[type="checkbox"]){flex-direction:row;justify-content:flex-start;text-align:left}
+html[dir="ltr"] body .camera-feature{direction:ltr;flex-direction:row;text-align:left}
+html[dir="ltr"] body .camera-feature>span{text-align:left}
+html[dir="ltr"] body .toast{right:20px;left:auto;text-align:left}
+html[dir="rtl"] body,html[dir="rtl"] body .app,html[dir="rtl"] body .main{direction:rtl;text-align:right}
