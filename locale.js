@@ -86,6 +86,7 @@ const EXTRA=[
 ["Paramètres caméra : ","إعدادات الكاميرا: ","Paramètres caméra : ","Camera settings: ","Ajustes de cámara: ","Kameraeinstellungen: ","摄像头设置："],
 ["Configuration des tables : ","إعداد الطاولات: ","Configuration des tables : ","Table configuration: ","Configuración de mesas: ","Tischkonfiguration: ","桌台配置："]
 ];
+const R=EXTRA;
 L.forEach((x,i)=>R.forEach(row=>{if(MAP[x[0]][row[0]]===undefined)MAP[x[0]][row[0]]=row[i+1];}));
 
 const EXTRA2=[
