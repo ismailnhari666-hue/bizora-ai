@@ -126,3 +126,5 @@ html[dir="ltr"] body .camera-feature{direction:ltr;flex-direction:row;text-align
 html[dir="ltr"] body .camera-feature>span{text-align:left}
 html[dir="ltr"] body .toast{right:20px;left:auto;text-align:left}
 html[dir="rtl"] body,html[dir="rtl"] body .app,html[dir="rtl"] body .main{direction:rtl;text-align:right}
+
+.global-language-label{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:12px;font-weight:700;white-space:nowrap}.global-language{width:auto;min-width:112px;max-width:145px;margin:0;padding:9px 28px 9px 10px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;font-size:12px}.top-actions{flex-wrap:wrap}@media(max-width:600px){.global-language{min-width:100px;max-width:125px;padding:8px 22px 8px 7px}.global-language-label span{display:none}}
