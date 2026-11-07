@@ -67,7 +67,7 @@ async function overview(){
     <div class="dashboard-lower">
       <section class="panel dashboard-recent">
         <div class="section-head"><div><h3>آخر المبيعات</h3><span class="muted">أحدث 8 عمليات بيع اليوم</span></div><button class="secondary" onclick="loadPage('sales')">عرض المبيعات</button></div>
-        <div class="table-wrap">${recentRows.length?`<table><thead><tr><th>المرجع</th><th>الوقت</th><th>المبلغ</th></tr></thead><tbody>${recentRows.map(row=>`<tr><td><b>#${row.id.slice(0,8).toUpperCase()}</b></td><td>${new Date(row.created_at).toLocaleTimeString(window.BizoraI18n?.locale||"ar-MA",{hour:"2-digit",minute:"2-digit"})}</td><td><b>${money(row.total)}</b></td></tr>`).join("")}</tbody></table>`:'<div class="empty">لا توجد مبيعات اليوم. سجّل أول عملية بيع باش تبان هنا.</div>'}</div>
+        <div class="table-wrap">${recentRows.length?`<table><thead><tr><th>المرجع</th><th>الوقت</th><th>المبلغ</th></tr></thead><tbody>${recentRows.map(row=>`<tr><td><b>#${row.id.slice(0,8).toUpperCase()}</b></td><td>${new Date(row.created_at).toLocaleTimeString(window.BizoraI18n?.locale||"ar-MA",{hour:"2-digit",minute:"2-digit"})}</td><td><b>${money(row.total)}</b></td></tr>`).join("")}</tbody></table>`:'<div class="empty">لا توجد مبيعات مسجلة اليوم بعد.</div>'}</div>
       </section>
       <section class="panel dashboard-best"><div class="section-head"><div><h3>${tr("المنتجات الأكثر مبيعاً","Produits les plus vendus","Top-selling products","Productos más vendidos","Meistverkaufte Produkte","畅销商品")}</h3><span class="muted">${tr("حسب الكمية خلال آخر 7 أيام","Par quantité sur les 7 derniers jours","By quantity over the last 7 days","Por cantidad en los últimos 7 días","Nach Menge der letzten 7 Tage","按最近 7 天销量排序")}</span></div></div>${bestProducts.length?bestProducts.map((item,index)=>`<div class="dashboard-product-row"><span class="dashboard-rank">${index+1}</span><b>${esc(item[0])}</b><small>${item[1].quantity} ${tr("وحدة","unités","units","unidades","Einheiten","件")}</small><strong>${money(item[1].total)}</strong></div>`).join(""):'<div class="empty">لا توجد بيانات مبيعات كافية بعد.</div>'}</section>
       <aside class="dashboard-side">
@@ -148,7 +148,8 @@ async function productPage(showArchived=false){
   ["productSearch","productTypeFilter","productCategoryFilter"].forEach(id=>$(id).addEventListener(id==="productSearch"?"input":"change",applyFilters));
 }
 async function salesPage(){
-  const isOwner=orgs.some(o=>o.id===orgId&&o.role==="owner");
+  const activeOrg=orgs.find(o=>o.id===orgId);
+  const isOwner=String(activeOrg?.role||"").toLowerCase()==="owner";
   if(isOwner){
     $("content").innerHTML='<div class="section-head"><div><h2>سجل المبيعات</h2><p class="muted">عرض ومتابعة عمليات البيع المسجلة في مؤسستك.</p></div></div><div id="saleHistory" class="panel">جاري تحميل سجل المبيعات…</div>';
     const {data:s,error}=await sb.from("sales").select("id,total,payment_method,created_at,status").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(100);
