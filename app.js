@@ -18,7 +18,7 @@ document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>loadPage(b.dataset.pa
 async function boot(){const {data:{session}}=await sb.auth.getSession();user=session?.user||null;if(!user){window.BizoraI18n?.mount("guest");$("authView").classList.remove("hidden");$("appView").classList.add("hidden");return}$("authView").classList.add("hidden");$("appView").classList.remove("hidden");$("userEmail").textContent=user.email||"Utilisateur";$("avatar").textContent=(user.email||"U")[0].toUpperCase();window.BizoraI18n?.mount(user.id);await loadOrganizations()}
 async function loadOrganizations(preselect){const {data,error}=await sb.from("memberships").select("organization_id,role,organizations(id,name,currency)").eq("user_id",user.id).eq("is_active",true);if(error){toast(error.message);return}orgs=(data||[]).map(x=>({...x.organizations,role:x.role})).filter(Boolean);$("orgSelect").innerHTML=orgs.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join("");orgId=preselect||orgs[0]?.id||null;if(orgId)$("orgSelect").value=orgId;$("orgSetup").classList.toggle("hidden",!!orgId);if(orgId)await loadPage(currentPage);else $("content").innerHTML=""}
 function heading(title){$("pageTitle").textContent=title;document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===currentPage))}
-async function loadPage(page){if(!orgId)return;currentPage=page;document.querySelector(".topbar")?.classList.toggle("hidden",page==="overview");const names={overview:"لوحة القيادة",products:"المنتجات والمخزون",sales:"المبيعات",orders:"الطلبات",cameras:"الكاميرات",reports:"التقارير",settings:"الإعدادات"};heading(names[page]||"Vue générale");if(page==="overview")return overview();if(page==="products")return productPage();if(page==="sales")return salesPage();if(page==="orders")return ordersPage();if(page==="cameras")return camerasPage();if(page==="reports")return reportsPage();if(page==="settings")return settingsPage()}
+async function loadPage(page){if(!orgId)return;currentPage=page;document.querySelector(".topbar")?.classList.toggle("hidden",page==="overview");const names={overview:"لوحة القيادة",products:"المنتجات والمخزون",sales:"المبيعات",orders:"الطلبات",cameras:"الكاميرات",reports:"التقارير",settings:"الإعدادات"};heading(names[page]||"Vue générale");if(page==="overview")return overview();if(page==="products")return productPage();if(page==="sales")return salesPage();if(page==="orders")return ordersPage();if(page==="cameras")return camerasPage();if(page==="reports")return reportsPage();if(page==="settings")return settingsPage();if(page==="worker-ui")return workerOrderInterface()}
 async function overview(){
   const lang=window.BizoraI18n?.language||"ar";
   const tr=(ar,fr,en,es,de,zh)=>({ar,fr,en,es,de,"zh-CN":zh})[lang]||ar;
@@ -72,6 +72,42 @@ async function overview(){
       </aside>
     </div>`;
 }
+
+let workerCart=[];
+function workerOrderInterface(){
+ const lang=window.BizoraI18n?.language||"ar";
+ const words={
+ ar:["واجهة تسجيل الطلبات","واجهة العامل — معاينة التصميم","المأكولات","المشروبات","الكل","ابحث عن منتج…","الطلب الحالي","مازال ما ضفتي حتى منتج","الكمية","المجموع","تأكيد الطلب (تجريبي)","مسح الطلب","إضافة","هذه معاينة للواجهة فقط. الطلبات لا تُحفظ ولا تُرسل.","رقم الطاولة","اختر الطاولة"],
+ fr:["Saisie des commandes","Interface employé — aperçu","Plats","Boissons","Tout","Rechercher un produit…","Commande en cours","Aucun article ajouté","Qté","Total","Valider (démo)","Vider","Ajouter","Aperçu uniquement. Aucune commande n’est enregistrée ou envoyée.","Table","Choisir une table"],
+ en:["Order entry","Staff interface — design preview","Food","Drinks","All","Search products…","Current order","No items added yet","Qty","Total","Confirm order (demo)","Clear order","Add","Preview only. Orders are not saved or sent.","Table","Choose a table"],
+ es:["Registro de pedidos","Interfaz del empleado — vista previa","Comida","Bebidas","Todo","Buscar productos…","Pedido actual","Aún no hay productos","Cant.","Total","Confirmar (demo)","Vaciar","Añadir","Solo vista previa. Los pedidos no se guardan ni se envían.","Mesa","Elegir mesa"],
+ de:["Bestellerfassung","Mitarbeiteroberfläche — Vorschau","Speisen","Getränke","Alle","Produkt suchen…","Aktuelle Bestellung","Noch keine Artikel","Menge","Gesamt","Bestätigen (Demo)","Leeren","Hinzufügen","Nur Vorschau. Bestellungen werden nicht gespeichert oder gesendet.","Tisch","Tisch auswählen"],
+ "zh-CN":["订单录入","员工界面 — 设计预览","食品","饮料","全部","搜索商品…","当前订单","尚未添加商品","数量","总计","确认订单（演示）","清空","添加","仅供预览。订单不会保存或发送。","桌号","选择桌号"]
+ };
+ const t=words[lang]||words.ar;
+ const demo=[{id:1,name:{ar:"بيتزا مارغريتا",fr:"Pizza Margherita",en:"Margherita pizza",es:"Pizza margarita",de:"Pizza Margherita","zh-CN":"玛格丽特披萨"}[lang]||"بيتزا مارغريتا",type:"food",price:55,icon:"🍕"},{id:2,name:{ar:"برغر دجاج",fr:"Burger au poulet",en:"Chicken burger",es:"Hamburguesa de pollo",de:"Hähnchenburger","zh-CN":"鸡肉汉堡"}[lang]||"برغر دجاج",type:"food",price:42,icon:"🍔"},{id:3,name:{ar:"سلطة خضراء",fr:"Salade verte",en:"Green salad",es:"Ensalada verde",de:"Grüner Salat","zh-CN":"蔬菜沙拉"}[lang]||"سلطة خضراء",type:"food",price:28,icon:"🥗"},{id:4,name:{ar:"عصير برتقال",fr:"Jus d’orange",en:"Orange juice",es:"Zumo de naranja",de:"Orangensaft","zh-CN":"橙汁"}[lang]||"عصير برتقال",type:"drink",price:18,icon:"🧃"},{id:5,name:{ar:"قهوة",fr:"Café",en:"Coffee",es:"Café",de:"Kaffee","zh-CN":"咖啡"}[lang]||"قهوة",type:"drink",price:12,icon:"☕"},{id:6,name:{ar:"ماء معدني",fr:"Eau minérale",en:"Mineral water",es:"Agua mineral",de:"Mineralwasser","zh-CN":"矿泉水"}[lang]||"ماء معدني",type:"drink",price:8,icon:"💧"}];
+ let filter="all";
+ const moneyUI=n=>money(n);
+ $("content").innerHTML='<div class="worker-screen"><div class="worker-head"><div><span class="worker-kicker">'+t[1]+'</span><h2>'+t[0]+'</h2></div><span class="worker-preview-badge">UI Preview</span></div><div class="worker-layout"><section class="worker-menu"><div class="worker-toolbar"><div class="worker-tabs"><button class="active" data-filter="all">'+t[4]+'</button><button data-filter="food">🍽 '+t[2]+'</button><button data-filter="drink">🥤 '+t[3]+'</button></div><input id="workerSearch" placeholder="'+t[5]+'"></div><div id="workerProducts" class="worker-products"></div></section><aside class="worker-order"><div class="worker-order-head"><div><h3>'+t[6]+'</h3><small><span id="workerCount">0</span> '+t[8]+'</small></div><button id="workerClear" class="ghost">'+t[11]+'</button></div><label class="worker-table-label">'+t[14]+'<select><option>'+t[15]+'</option>'+Array.from({length:12},(_,i)=>'<option>'+(i+1)+'</option>').join("")+'</select></label><div id="workerCart" class="worker-cart"></div><div class="worker-total"><span>'+t[9]+'</span><strong id="workerTotal">'+moneyUI(0)+'</strong></div><button id="workerSend" class="primary worker-submit">'+t[10]+'</button><p class="worker-demo-note">'+t[13]+'</p></aside></div></div>';
+ workerCart=[];
+ const render=()=>{
+  const query=($("workerSearch").value||"").toLocaleLowerCase();
+  const shown=demo.filter(p=>(filter==="all"||p.type===filter)&&p.name.toLocaleLowerCase().includes(query));
+  $("workerProducts").innerHTML=shown.map(p=>'<article class="worker-product"><div class="worker-product-icon">'+p.icon+'</div><div class="worker-product-info"><b>'+esc(p.name)+'</b><small>'+(p.type==="food"?t[2]:t[3])+'</small><strong>'+moneyUI(p.price)+'</strong></div><button class="worker-add" data-add="'+p.id+'">+</button></article>').join("")||'<div class="empty">—</div>';
+  $("workerCart").innerHTML=workerCart.length?workerCart.map(x=>'<div class="worker-cart-row"><span>'+esc(x.name)+'</span><div class="worker-qty"><button data-dec="'+x.id+'">−</button><b>'+x.qty+'</b><button data-inc="'+x.id+'">+</button></div><strong>'+moneyUI(x.qty*x.price)+'</strong></div>').join(""):'<div class="worker-empty">'+t[7]+'</div>';
+  $("workerTotal").textContent=moneyUI(workerCart.reduce((sum,x)=>sum+x.qty*x.price,0));
+  $("workerCount").textContent=workerCart.reduce((sum,x)=>sum+x.qty,0);
+  $("workerProducts").querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const p=demo.find(x=>x.id===Number(b.dataset.add));const old=workerCart.find(x=>x.id===p.id);old?old.qty++:workerCart.push({...p,qty:1});render()});
+  $("workerCart").querySelectorAll("[data-inc]").forEach(b=>b.onclick=()=>{const x=workerCart.find(x=>x.id===Number(b.dataset.inc));if(x)x.qty++;render()});
+  $("workerCart").querySelectorAll("[data-dec]").forEach(b=>b.onclick=()=>{const x=workerCart.find(x=>x.id===Number(b.dataset.dec));if(x){x.qty--;if(x.qty<=0)workerCart=workerCart.filter(y=>y.id!==x.id)}render()});
+ };
+ $("workerSearch").oninput=render;
+ document.querySelectorAll("[data-filter]").forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));render()});
+ $("workerClear").onclick=()=>{workerCart=[];render()};
+ $("workerSend").onclick=()=>toast(t[13]);
+ render();
+}
+
 async function productPage(showArchived=false){
   const {data,error}=await sb.from("products").select("*").eq("organization_id",orgId).eq("is_active",!showArchived).order("name");
   if(error){toast(error.message);return}
