@@ -9,6 +9,7 @@ de:{"لوحة القيادة":"Dashboard","المنتجات والمخزون":"P
 "zh-CN":{"لوحة القيادة":"仪表板","المنتجات والمخزون":"商品与库存","المبيعات":"销售","الطلبات":"订单","الكاميرات":"摄像头","التقارير":"报表","الإعدادات":"设置","مساحة العمل":"工作空间","الحساب متصل":"账户已连接","تسجيل الخروج":"退出登录","تسجيل الدخول":"登录","إنشاء حساب":"创建账户","كل نشاطك التجاري تحت السيطرة.":"全面掌控您的业务。","مركز إدارة النشاط":"业务管理中心","قاعدة البيانات متصلة":"数据库已连接","مرحباً بك في Bizora Digital":"欢迎使用 Bizora Digital","إنشاء مساحة العمل":"创建工作空间","اسم المؤسسة":"企业名称","اللغة":"语言","اختر لغة الواجهة":"选择界面语言","حفظ اللغة":"保存语言","إعدادات اللغة":"语言设置","تم حفظ اللغة بنجاح":"语言保存成功"}
 };
 let current="ar",userId="guest";const originals=new WeakMap(),originalAttrs=new WeakMap();
+const L=languages; const MAP={}; languages.forEach(x=>MAP[x[0]]={});
 const EXTRA=[
 ["ملخص النشاط التجاري","ملخص النشاط التجاري","Résumé de l’activité","Business overview","Resumen del negocio","Geschäftsübersicht","业务概览"],
 ["نظرة سريعة على أداء مؤسستك اليوم.","نظرة سريعة على أداء مؤسستك اليوم.","Aperçu des performances de votre entreprise aujourd’hui.","A quick look at your business performance today.","Un vistazo al rendimiento de tu negocio hoy.","Ein kurzer Überblick über Ihre Geschäftsleistung heute.","快速查看您企业今天的经营表现。"],
