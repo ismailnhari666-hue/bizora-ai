@@ -87,7 +87,7 @@ const EXTRA=[
 ["Configuration des tables : ","إعداد الطاولات: ","Configuration des tables : ","Table configuration: ","Configuración de mesas: ","Tischkonfiguration: ","桌台配置："]
 ];
 const R=EXTRA;
-L.forEach((x,i)=>R.forEach(row=>{if(MAP[x[0]][row[0]]===undefined)MAP[x[0]][row[0]]=row[i+1];}));
+L.forEach((x,i)=>R.forEach(row=>{if(!x||!row||!row[0]||!MAP[x[0]])return;if(MAP[x[0]][row[0]]===undefined)MAP[x[0]][row[0]]=row[i+1];}));
 
 const EXTRA2=[
 ["Vue générale","نظرة عامة","Vue générale","Overview","Vista general","Übersicht","概览"],
@@ -219,7 +219,7 @@ const EXTRA_CAMERA=[
 ["Réapprovisionnement","إعادة التزويد","Réapprovisionnement","Restocking","Reposición","Nachbestellung","补货"],
 ["Export des ventes","تصدير المبيعات","Export des ventes","Sales export","Exportar ventas","Verkaufsexport","销售导出"],
 ];
-L.forEach((x,i)=>EXTRA_CAMERA.forEach(row=>{if(MAP[x[0]][row[0]]===undefined)MAP[x[0]][row[0]]=row[i+1];}));
+L.forEach((x,i)=>EXTRA_CAMERA.forEach(row=>{if(!x||!row||!row[0]||!MAP[x[0]])return;if(MAP[x[0]][row[0]]===undefined)MAP[x[0]][row[0]]=row[i+1];}));
 
 const dictionary=()=>({...words[current],...MAP[current]});
 function translate(node){if(node.nodeType!==Node.TEXT_NODE||!node.nodeValue.trim())return;const source=originals.get(node)||node.nodeValue;originals.set(node,source);let s=source;Object.keys(dictionary()).sort((a,b)=>b.length-a.length).forEach(k=>s=s.split(k).join(dictionary()[k]));if(s!==node.nodeValue)node.nodeValue=s;}
