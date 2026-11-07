@@ -68,28 +68,28 @@ async function productPage(showArchived=false){
   const categories=[...new Set(products.map(p=>p.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ar"));
   $("content").innerHTML=`
     <div class="panel">
-      <div class="section-head"><div><h3>لائحة المأكولات والمشروبات</h3><span class="muted">زيد المنتجات وحدد الثمن ديال كل واحد بالدرهم (MAD).</span></div><span class="badge">${products.length} عنصر</span></div>
+      <div class="section-head"><div><h3>لائحة المأكولات والمشروبات</h3><span class="muted">أضف المنتجات وحدد سعر كل منتج بالدرهم (MAD).</span></div><span class="badge">${products.length} عنصر</span></div>
       <form id="productForm" class="form-grid">
         <input type="hidden" name="id" id="productId">
-        <label>اسم المنتوج<input name="name" maxlength="120" required placeholder="مثال: طاجين دجاج"></label>
+        <label>اسم المنتج<input name="name" maxlength="120" required placeholder="مثال: طاجين دجاج"></label>
         <label>النوع<select name="item_type" id="productType"><option value="food">مأكولات</option><option value="drink">مشروبات</option></select></label>
         <label>الصنف / الفئة<input name="category" maxlength="80" placeholder="مثال: طواجن، عصائر، سلطات"></label>
         <label>ثمن البيع (درهم)<input name="unit_price" type="number" min="0" max="9999999" step=".01" required placeholder="مثال: 35"></label>
         <label>ثمن التكلفة (اختياري)<input name="cost_price" type="number" min="0" step=".01" value="0"></label>
         <label>المخزون الحالي<input name="stock_quantity" type="number" min="0" step=".001" value="0"></label>
         <label>تنبيه عند وصول المخزون إلى<input name="low_stock_threshold" type="number" min="0" step=".001" value="2"></label>
-        <label>رمز المنتوج (اختياري)<input name="sku" maxlength="80" placeholder="SKU"></label>
+        <label>رمز المنتج (اختياري)<input name="sku" maxlength="80" placeholder="SKU"></label>
         <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
           <button class="primary" id="saveProductBtn">إضافة إلى اللائحة</button>
           <button type="button" class="secondary" id="cancelProductEdit" hidden>إلغاء التعديل</button>
         </div>
       </form>
-      <p class="muted" id="productFormMsg" aria-live="polite">المأكولات كتتوجه للمطبخ، والمشروبات للبار تلقائياً.</p>
+      <p class="muted" id="productFormMsg" aria-live="polite">تُوجَّه المأكولات إلى المطبخ والمشروبات إلى البار تلقائياً.</p>
     </div>
-    <div class="section-head"><div><h3>${showArchived?"المنتجات المؤرشفة":"اللائحة الحالية"} (${products.length})</h3><span class="muted">يمكنك تعديل الاسم والثمن أو إخفاء منتوج بدون حذف سجل المبيعات القديم.</span></div><button class="secondary" id="toggleArchived">${showArchived?"عرض اللائحة الحالية":"عرض المؤرشف"}</button></div>
+    <div class="section-head"><div><h3>${showArchived?"المنتجات المؤرشفة":"اللائحة الحالية"} (${products.length})</h3><span class="muted">يمكنك تعديل الاسم والثمن أو إخفاء منتج دون حذف سجل المبيعات السابق.</span></div><button class="secondary" id="toggleArchived">${showArchived?"عرض اللائحة الحالية":"عرض المؤرشف"}</button></div>
     <div class="panel">
       <div class="form-grid" style="margin-bottom:14px">
-        <label>بحث عن منتوج<input id="productSearch" type="search" placeholder="كتب اسم المنتوج…"></label>
+        <label>بحث عن منتوج<input id="productSearch" type="search" placeholder="كتب اسم المنتج…"></label>
         <label>تصفية حسب النوع<select id="productTypeFilter"><option value="">الكل</option><option value="food">مأكولات</option><option value="drink">مشروبات</option></select></label>
         <label>تصفية حسب الفئة<select id="productCategoryFilter"><option value="">جميع الفئات</option>${categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select></label>
       </div>
@@ -101,15 +101,15 @@ async function productPage(showArchived=false){
     </div>`;
   $("toggleArchived").onclick=()=>productPage(!showArchived);
   const form=$("productForm");
-  const resetForm=()=>{form.reset();$("productId").value="";form.elements.cost_price.value="0";form.elements.stock_quantity.value="0";form.elements.low_stock_threshold.value="2";$("saveProductBtn").textContent="إضافة إلى اللائحة";$("cancelProductEdit").hidden=true;$("productFormMsg").textContent="المأكولات كتتوجه للمطبخ، والمشروبات للبار تلقائياً."};
+  const resetForm=()=>{form.reset();$("productId").value="";form.elements.cost_price.value="0";form.elements.stock_quantity.value="0";form.elements.low_stock_threshold.value="2";$("saveProductBtn").textContent="إضافة إلى اللائحة";$("cancelProductEdit").hidden=true;$("productFormMsg").textContent="تُوجَّه المأكولات إلى المطبخ والمشروبات إلى البار تلقائياً."};
   $("cancelProductEdit").onclick=resetForm;
   form.onsubmit=async e=>{
     e.preventDefault();
     const fd=new FormData(form),id=String(fd.get("id")||""),name=String(fd.get("name")||"").trim(),price=Number(fd.get("unit_price"));
-    if(!name||!Number.isFinite(price)||price<0){toast("دخل اسم صحيح وثمن صالح.");return}
+    if(!name||!Number.isFinite(price)||price<0){toast("أدخل اسماً صحيحاً وسعراً صالحاً.");return}
     const itemType=fd.get("item_type")==="drink"?"drink":"food";
     const payload={name,item_type:itemType,category:String(fd.get("category")||"").trim()||null,unit_price:price,cost_price:Number(fd.get("cost_price")||0),stock_quantity:Number(fd.get("stock_quantity")||0),low_stock_threshold:Number(fd.get("low_stock_threshold")||0),sku:String(fd.get("sku")||"").trim()||null,service_station:itemType==="drink"?"bar":"kitchen",organization_id:orgId};
-    if([payload.cost_price,payload.stock_quantity,payload.low_stock_threshold].some(n=>!Number.isFinite(n)||n<0)){toast("راجع ثمن التكلفة والمخزون؛ خاصهم يكونو أرقام موجبة أو صفر.");return}
+    if([payload.cost_price,payload.stock_quantity,payload.low_stock_threshold].some(n=>!Number.isFinite(n)||n<0)){toast("تحقق من سعر التكلفة وكمية المخزون؛ يجب أن تكون قيماً رقمية موجبة أو صفراً.");return}
     const result=id?await sb.from("products").update(payload).eq("id",id).eq("organization_id",orgId):await sb.from("products").insert(payload);
     if(result.error){toast(result.error.message);return}
     toast(id?"تم تحديث المنتوج والثمن":"تمت إضافة المنتوج للائحة");await productPage(showArchived);
@@ -117,7 +117,7 @@ async function productPage(showArchived=false){
   document.querySelectorAll(".edit-product").forEach(btn=>btn.onclick=()=>{
     const p=products.find(x=>x.id===btn.dataset.id);if(!p)return;
     $("productId").value=p.id;form.elements.name.value=p.name||"";form.elements.item_type.value=p.item_type||"food";form.elements.category.value=p.category||"";form.elements.unit_price.value=p.unit_price??0;form.elements.cost_price.value=p.cost_price??0;form.elements.stock_quantity.value=p.stock_quantity??0;form.elements.low_stock_threshold.value=p.low_stock_threshold??0;form.elements.sku.value=p.sku||"";
-    $("saveProductBtn").textContent="حفظ التعديلات";$("cancelProductEdit").hidden=false;$("productFormMsg").textContent="كتعدل دابا: "+p.name;form.scrollIntoView({behavior:"smooth",block:"start"});
+    $("saveProductBtn").textContent="حفظ التعديلات";$("cancelProductEdit").hidden=false;$("productFormMsg").textContent="جارٍ تعديل: "+p.name;form.scrollIntoView({behavior:"smooth",block:"start"});
   });
   document.querySelectorAll(".archive-product").forEach(btn=>btn.onclick=async()=>{
     const p=products.find(x=>x.id===btn.dataset.id);if(!p)return;
@@ -311,10 +311,10 @@ async function camerasPage(){
       if(info.brand)$("cameraForm").elements.brand.value=info.brand;
       if(info.kind)$("cameraForm").elements.type.value=info.kind;
       $("cameraForm").elements.method.value="qr";
-      pairMsg.textContent="تم استخراج UID / الرقم التسلسلي. راجع الاسم والمنطقة ثم اضغط «Enregistrer l’appareil». لم يتم حفظ محتوى QR الخام أو أي كلمة مرور.";
+      pairMsg.textContent="تم استخراج UID / الرقم التسلسلي. راجع الاسم والمنطقة، ثم اضغط «حفظ الجهاز». لم يتم حفظ محتوى رمز QR الأصلي أو أي كلمة مرور.";
       stopQr();
     }else{
-      pairMsg.textContent="تمت قراءة QR، ولكن لم نجد فيه UID أو رقمًا تسلسليًا معروفًا. لم نخزن محتواه. تأكد أنه QR الخاص بمعلومات الجهاز وليس QR مشاركة أو إعداد شبكة.";
+      pairMsg.textContent="تمت قراءة رمز QR، لكن لم نعثر على UID أو رقم تسلسلي معروف. لم يتم حفظ محتواه. تأكد من أنه رمز معلومات الجهاز، وليس رمز مشاركة أو إعداد شبكة.";
       stopQr();
     }
   };
@@ -322,7 +322,7 @@ async function camerasPage(){
     const button=$("startQrScan");
     try{
       if(!navigator.mediaDevices?.getUserMedia)throw new Error("المتصفح لا يدعم فتح الكاميرا. افتح التطبيق عبر HTTPS.");
-      button.disabled=true;pairMsg.textContent="جاري تشغيل الكاميرا الخلفية…";
+      button.disabled=true;pairMsg.textContent="جارٍ تشغيل الكاميرا الخلفية…";
       qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
       qrVideo.srcObject=qrStream;qrVideo.classList.remove("hidden");await qrVideo.play();
       $("stopQrScan").disabled=false;
@@ -330,7 +330,7 @@ async function camerasPage(){
         let detector;
         try{detector=new BarcodeDetector({formats:["qr_code"]})}catch(_){detector=null}
         if(detector){
-          pairMsg.textContent="وجّه الكاميرا نحو QR الموجود في إعدادات DVR/NVR وخليه داخل الصورة.";
+          pairMsg.textContent="وجّه الكاميرا نحو رمز QR الموجود في إعدادات DVR/NVR، وأبقِه داخل إطار الصورة.";
           qrTimer=setInterval(async()=>{
             if(qrBusy)return;qrBusy=true;
             try{const codes=await detector.detect(qrVideo);if(codes.length)acceptQrValue(codes[0].rawValue)}
@@ -340,18 +340,18 @@ async function camerasPage(){
           return;
         }
       }
-      pairMsg.textContent="جاري تحميل قارئ QR المتوافق مع المتصفح…";
+      pairMsg.textContent="جارٍ تحميل قارئ QR المتوافق مع المتصفح…";
       const {BrowserQRCodeReader}=await import("https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm");
       const reader=new BrowserQRCodeReader();
       qrStream.getTracks().forEach(t=>t.stop());qrStream=null;
       qrControls=await reader.decodeFromVideoDevice(undefined,qrVideo,(result,error)=>{
         if(result)acceptQrValue(result.getText());
       });
-      pairMsg.textContent="وجّه الكاميرا نحو QR الموجود في إعدادات DVR/NVR.";
+      pairMsg.textContent="وجّه الكاميرا نحو رمز QR الموجود في إعدادات DVR/NVR.";
       $("stopQrScan").disabled=false;
     }catch(err){
       stopQr();
-      pairMsg.textContent="تعذر تشغيل قارئ QR: "+(err?.message||"تأكد من السماح باستعمال الكاميرا ومن فتح التطبيق عبر HTTPS.");
+      pairMsg.textContent="تعذر تشغيل قارئ QR: "+(err?.message||"تأكد من السماح باستخدام الكاميرا ومن فتح التطبيق عبر HTTPS.");
     }finally{button.disabled=false}
   };
   $("stopQrScan").onclick=()=>{stopQr();pairMsg.textContent="تم إيقاف المسح."};
