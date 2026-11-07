@@ -89,15 +89,15 @@ async function productPage(showArchived=false){
     <div class="section-head"><div><h3>${showArchived?"المنتجات المؤرشفة":"اللائحة الحالية"} (${products.length})</h3><span class="muted">يمكنك تعديل الاسم والثمن أو إخفاء منتج دون حذف سجل المبيعات السابق.</span></div><button class="secondary" id="toggleArchived">${showArchived?"عرض اللائحة الحالية":"عرض المؤرشف"}</button></div>
     <div class="panel">
       <div class="form-grid" style="margin-bottom:14px">
-        <label>بحث عن منتوج<input id="productSearch" type="search" placeholder="كتب اسم المنتج…"></label>
+        <label>بحث عن منتج<input id="productSearch" type="search" placeholder="كتب اسم المنتج…"></label>
         <label>تصفية حسب النوع<select id="productTypeFilter"><option value="">الكل</option><option value="food">مأكولات</option><option value="drink">مشروبات</option></select></label>
         <label>تصفية حسب الفئة<select id="productCategoryFilter"><option value="">جميع الفئات</option>${categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select></label>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>المنتوج</th><th>النوع</th><th>الفئة</th><th>الثمن</th><th>المخزون</th><th>إجراء</th></tr></thead><tbody id="productRows">${products.length?products.map(p=>`
+      <div class="table-wrap"><table><thead><tr><th>المنتج</th><th>النوع</th><th>الفئة</th><th>الثمن</th><th>المخزون</th><th>إجراء</th></tr></thead><tbody id="productRows">${products.length?products.map(p=>`
         <tr data-name="${esc(p.name.toLowerCase())}" data-type="${esc(p.item_type||"food")}" data-category="${esc(p.category||"")}">
-          <td><b>${esc(p.name)}</b></td><td><span class="badge">${p.item_type==="drink"?"مشروب":"مأكولة"}</span></td><td>${esc(p.category||"—")}</td><td><b>${money(p.unit_price)}</b></td><td>${Number(p.stock_quantity||0)}</td>
+          <td><b>${esc(p.name)}</b></td><td><span class="badge">${p.item_type==="drink"?"مشروب":"وجبة"}</span></td><td>${esc(p.category||"—")}</td><td><b>${money(p.unit_price)}</b></td><td>${Number(p.stock_quantity||0)}</td>
           <td><div class="row" style="gap:6px;flex-wrap:wrap"><button type="button" class="secondary edit-product" data-id="${p.id}">تعديل</button><button type="button" class="secondary archive-product" data-id="${p.id}">${showArchived?"استرجاع":"إخفاء"}</button></div></td>
-        </tr>`).join(""):'<tr><td colspan="6" class="empty">مازال ما زدتي حتى منتوج. استعمل الاستمارة لإضافة أول مأكولة أو مشروب.</td></tr>'}</tbody></table></div>
+        </tr>`).join(""):'<tr><td colspan="6" class="empty">مازال ما زدتي حتى منتج. استعمل الاستمارة لإضافة أول مأكولة أو مشروب.</td></tr>'}</tbody></table></div>
     </div>`;
   $("toggleArchived").onclick=()=>productPage(!showArchived);
   const form=$("productForm");
@@ -112,7 +112,7 @@ async function productPage(showArchived=false){
     if([payload.cost_price,payload.stock_quantity,payload.low_stock_threshold].some(n=>!Number.isFinite(n)||n<0)){toast("تحقق من سعر التكلفة وكمية المخزون؛ يجب أن تكون قيماً رقمية موجبة أو صفراً.");return}
     const result=id?await sb.from("products").update(payload).eq("id",id).eq("organization_id",orgId):await sb.from("products").insert(payload);
     if(result.error){toast(result.error.message);return}
-    toast(id?"تم تحديث المنتوج والثمن":"تمت إضافة المنتوج للائحة");await productPage(showArchived);
+    toast(id?"تم تحديث المنتج والثمن":"تمت إضافة المنتج للائحة");await productPage(showArchived);
   };
   document.querySelectorAll(".edit-product").forEach(btn=>btn.onclick=()=>{
     const p=products.find(x=>x.id===btn.dataset.id);if(!p)return;
@@ -124,7 +124,7 @@ async function productPage(showArchived=false){
     const nextActive=showArchived;
     const {error}=await sb.from("products").update({is_active:nextActive}).eq("id",p.id).eq("organization_id",orgId);
     if(error){toast(error.message);return}
-    toast(nextActive?"تم استرجاع المنتوج":"تم إخفاء المنتوج من اللائحة");await productPage(showArchived);
+    toast(nextActive?"تم استرجاع المنتج":"تم إخفاء المنتج من اللائحة");await productPage(showArchived);
   });
   const applyFilters=()=>{
     const term=$("productSearch").value.trim().toLocaleLowerCase("ar"),type=$("productTypeFilter").value,category=$("productCategoryFilter").value;
