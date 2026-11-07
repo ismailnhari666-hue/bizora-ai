@@ -134,3 +134,19 @@ html[dir="rtl"] body,html[dir="rtl"] body .app,html[dir="rtl"] body .main{direct
 
 
 .dashboard-chart-panel{margin-top:16px}.dashboard-chart{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px;align-items:end;height:190px;padding:12px 4px 0}.dashboard-bar-item{height:100%;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:8px}.dashboard-bar-item>b{font-size:10px;color:var(--muted);white-space:nowrap}.dashboard-bar-item>small{font-size:11px;color:var(--muted)}.dashboard-bar-track{height:125px;width:100%;max-width:58px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;display:flex;align-items:flex-end;overflow:hidden}.dashboard-bar-track span{display:block;width:100%;background:linear-gradient(180deg,var(--green),var(--blue));border-radius:8px 8px 0 0}.dashboard-best{grid-column:1}.dashboard-side{grid-column:2;grid-row:1 / span 2}.dashboard-product-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}.dashboard-product-row:last-child{border-bottom:0}.dashboard-product-row>strong{margin-inline-start:auto;font-size:12px}.dashboard-product-row>small{color:var(--muted);font-size:10px}.dashboard-rank{width:26px;height:26px;flex:none;display:grid;place-items:center;border-radius:8px;background:var(--panel2);color:var(--green);font-weight:700}@media(max-width:1050px){.dashboard-best{grid-column:1}.dashboard-side{grid-column:1;grid-row:auto}}@media(max-width:600px){.dashboard-chart{gap:5px;height:165px}.dashboard-bar-track{height:105px}.dashboard-bar-item>b{font-size:8px}.dashboard-bar-item>small{font-size:10px}}
+
+/* Mobile/tablet layout safety: avoid desktop sidebar squeezing content on phones. */
+@media(max-width:1100px){
+.app{display:flex;flex-direction:column;min-width:0}
+.sidebar{position:sticky;top:0;z-index:20;min-height:0;width:100%;padding:10px 12px 8px;box-shadow:0 5px 18px #132b451c}
+.brand{padding:2px 5px 10px}.brand-mark.small{width:32px;height:32px}.brand small{display:none}
+.orgbox,.side-bottom{display:none}
+.sidebar nav{display:flex;gap:6px;overflow-x:auto;padding:2px 0 5px;scrollbar-width:none}.sidebar nav::-webkit-scrollbar{display:none}
+.sidebar .nav{flex:0 0 auto;width:auto;margin:0;padding:9px 12px;white-space:nowrap}
+.main{width:100%;max-width:100%;min-width:0;margin:0;padding:18px 15px 25px}
+#content,.panel,.table-wrap{min-width:0;max-width:100%}
+}
+#saleHistory{min-width:0;max-width:100%;overflow:hidden}
+#saleHistory .sales-history-wrap{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+#saleHistory .sales-history-table{width:100%;min-width:550px}
+@media(max-width:600px){#saleHistory{padding:10px}#saleHistory .sales-history-table th,#saleHistory .sales-history-table td{padding:11px 8px;font-size:11px}}
