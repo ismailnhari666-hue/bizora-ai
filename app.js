@@ -20,7 +20,77 @@ async function loadOrganizations(preselect){const {data,error}=await sb.from("me
 function heading(title){$("pageTitle").textContent=title;document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===currentPage))}
 async function loadPage(page){if(!orgId)return;currentPage=page;const names={overview:"Vue générale",products:"Produits & stock",sales:"Ventes",orders:"Commandes",cameras:"Caméras",reports:"Rapports",settings:"Paramètres"};heading(names[page]||"Vue générale");if(page==="overview")return overview();if(page==="products")return productPage();if(page==="sales")return salesPage();if(page==="orders")return ordersPage();if(page==="cameras")return camerasPage();if(page==="reports")return reportsPage();if(page==="settings")return settingsPage()}
 async function overview(){const [p,s,o]=await Promise.all([sb.from("products").select("id,name,stock_quantity,low_stock_threshold").eq("organization_id",orgId).eq("is_active",true),sb.from("sales").select("id,total,created_at").eq("organization_id",orgId).gte("created_at",new Date(new Date().setHours(0,0,0,0)).toISOString()),sb.from("orders").select("id,status").eq("organization_id",orgId)]);const err=p.error||s.error||o.error;if(err){toast(err.message);return}const revenue=(s.data||[]).reduce((a,x)=>a+Number(x.total),0),low=(p.data||[]).filter(x=>Number(x.stock_quantity)<=Number(x.low_stock_threshold)).length,pending=(o.data||[]).filter(x=>["pending","preparing","ready"].includes(x.status)).length;$("content").innerHTML=`<div class="grid"><div class="stat"><small>Chiffre d'affaires aujourd'hui</small><strong>${money(revenue)}</strong><em>Ventes enregistrées</em></div><div class="stat"><small>Produits actifs</small><strong>${p.data.length}</strong><em>Catalogue</em></div><div class="stat"><small>Alertes de stock</small><strong>${low}</strong><em class="${low?'danger':''}">Sous le seuil minimum</em></div><div class="stat"><small>Commandes en cours</small><strong>${pending}</strong><em>À traiter</em></div></div><div class="section-head"><div><h3>Activité récente</h3><span class="muted">Dernières ventes</span></div><button class="primary" onclick="loadPage('sales')">Nouvelle vente</button></div><div class="panel table-wrap">${s.data.length?`<table><thead><tr><th>Référence</th><th>Date</th><th>Montant</th></tr></thead><tbody>${s.data.slice(0,8).map(x=>`<tr><td>${x.id.slice(0,8).toUpperCase()}</td><td>${new Date(x.created_at).toLocaleString("fr-MA")}</td><td>${money(x.total)}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">Aucune vente aujourd’hui. Ajoutez des produits puis enregistrez une vente.</div>'}</div>`}
-async function productPage(){const {data,error}=await sb.from("products").select("*").eq("organization_id",orgId).eq("is_active",true).order("created_at",{ascending:false});if(error){toast(error.message);return}products=data||[];$("content").innerHTML=`<div class="panel"><div class="section-head"><div><h3>Ajouter un produit</h3><span class="muted">Les prix sont en MAD</span></div></div><form id="productForm" class="form-grid"><label>Nom<input name="name" required></label><label>Référence SKU<input name="sku"></label><label>Catégorie<input name="category"></label><label>Préparation<select name="service_station"><option value="other">Autre</option><option value="kitchen">Cuisine — repas</option><option value="bar">Bar — boissons</option></select></label><label>Prix de vente<input name="unit_price" type="number" min="0" step=".01" required></label><label>Prix d'achat<input name="cost_price" type="number" min="0" step=".01" value="0"></label><label>Stock initial<input name="stock_quantity" type="number" min="0" step=".001" value="0"></label><label>Seuil d'alerte<input name="low_stock_threshold" type="number" min="0" step=".001" value="2"></label><button class="primary">Enregistrer le produit</button></form></div><div class="section-head"><h3>Catalogue (${products.length})</h3></div><div class="panel table-wrap">${products.length?`<table><thead><tr><th>Produit</th><th>SKU</th><th>Prix</th><th>Stock</th><th>État</th></tr></thead><tbody>${products.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.sku||"—")}</td><td>${money(p.unit_price)}</td><td>${p.stock_quantity}</td><td><span class="badge">${Number(p.stock_quantity)<=Number(p.low_stock_threshold)?"Stock bas":"Disponible"}</span></td></tr>`).join("")}</tbody></table>`:'<div class="empty">Aucun produit enregistré.</div>'}</div>`;$("productForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),payload=Object.fromEntries(f);["unit_price","cost_price","stock_quantity","low_stock_threshold"].forEach(k=>payload[k]=Number(payload[k]||0));payload.organization_id=orgId;payload.sku=payload.sku||null;payload.category=payload.category||null;const r=await sb.from("products").insert(payload);if(r.error){toast(r.error.message);return}toast("Produit ajouté");productPage()}}
+async function productPage(showArchived=false){
+  const {data,error}=await sb.from("products").select("*").eq("organization_id",orgId).eq("is_active",!showArchived).order("name");
+  if(error){toast(error.message);return}
+  products=data||[];
+  const categories=[...new Set(products.map(p=>p.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ar"));
+  $("content").innerHTML=`
+    <div class="panel">
+      <div class="section-head"><div><h3>لائحة المأكولات والمشروبات</h3><span class="muted">زيد المنتجات وحدد الثمن ديال كل واحد بالدرهم (MAD).</span></div><span class="badge">${products.length} عنصر</span></div>
+      <form id="productForm" class="form-grid">
+        <input type="hidden" name="id" id="productId">
+        <label>اسم المنتوج<input name="name" maxlength="120" required placeholder="مثال: طاجين دجاج"></label>
+        <label>النوع<select name="item_type" id="productType"><option value="food">مأكولات</option><option value="drink">مشروبات</option></select></label>
+        <label>الصنف / الفئة<input name="category" maxlength="80" placeholder="مثال: طواجن، عصائر، سلطات"></label>
+        <label>ثمن البيع (درهم)<input name="unit_price" type="number" min="0" max="9999999" step=".01" required placeholder="مثال: 35"></label>
+        <label>ثمن التكلفة (اختياري)<input name="cost_price" type="number" min="0" step=".01" value="0"></label>
+        <label>المخزون الحالي<input name="stock_quantity" type="number" min="0" step=".001" value="0"></label>
+        <label>تنبيه عند وصول المخزون إلى<input name="low_stock_threshold" type="number" min="0" step=".001" value="2"></label>
+        <label>رمز المنتوج (اختياري)<input name="sku" maxlength="80" placeholder="SKU"></label>
+        <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="primary" id="saveProductBtn">إضافة إلى اللائحة</button>
+          <button type="button" class="secondary" id="cancelProductEdit" hidden>إلغاء التعديل</button>
+        </div>
+      </form>
+      <p class="muted" id="productFormMsg" aria-live="polite">المأكولات كتتوجه للمطبخ، والمشروبات للبار تلقائياً.</p>
+    </div>
+    <div class="section-head"><div><h3>${showArchived?"المنتجات المؤرشفة":"اللائحة الحالية"} (${products.length})</h3><span class="muted">يمكنك تعديل الاسم والثمن أو إخفاء منتوج بدون حذف سجل المبيعات القديم.</span></div><button class="secondary" id="toggleArchived">${showArchived?"عرض اللائحة الحالية":"عرض المؤرشف"}</button></div>
+    <div class="panel">
+      <div class="form-grid" style="margin-bottom:14px">
+        <label>بحث عن منتوج<input id="productSearch" type="search" placeholder="كتب اسم المنتوج…"></label>
+        <label>تصفية حسب النوع<select id="productTypeFilter"><option value="">الكل</option><option value="food">مأكولات</option><option value="drink">مشروبات</option></select></label>
+        <label>تصفية حسب الفئة<select id="productCategoryFilter"><option value="">جميع الفئات</option>${categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select></label>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>المنتوج</th><th>النوع</th><th>الفئة</th><th>الثمن</th><th>المخزون</th><th>إجراء</th></tr></thead><tbody id="productRows">${products.length?products.map(p=>`
+        <tr data-name="${esc(p.name.toLowerCase())}" data-type="${esc(p.item_type||"food")}" data-category="${esc(p.category||"")}">
+          <td><b>${esc(p.name)}</b></td><td><span class="badge">${p.item_type==="drink"?"مشروب":"مأكولة"}</span></td><td>${esc(p.category||"—")}</td><td><b>${money(p.unit_price)}</b></td><td>${Number(p.stock_quantity||0)}</td>
+          <td><div class="row" style="gap:6px;flex-wrap:wrap"><button type="button" class="secondary edit-product" data-id="${p.id}">تعديل</button><button type="button" class="secondary archive-product" data-id="${p.id}">${showArchived?"استرجاع":"إخفاء"}</button></div></td>
+        </tr>`).join(""):'<tr><td colspan="6" class="empty">مازال ما زدتي حتى منتوج. استعمل الاستمارة لإضافة أول مأكولة أو مشروب.</td></tr>'}</tbody></table></div>
+    </div>`;
+  $("toggleArchived").onclick=()=>productPage(!showArchived);
+  const form=$("productForm");
+  const resetForm=()=>{form.reset();$("productId").value="";form.elements.cost_price.value="0";form.elements.stock_quantity.value="0";form.elements.low_stock_threshold.value="2";$("saveProductBtn").textContent="إضافة إلى اللائحة";$("cancelProductEdit").hidden=true;$("productFormMsg").textContent="المأكولات كتتوجه للمطبخ، والمشروبات للبار تلقائياً."};
+  $("cancelProductEdit").onclick=resetForm;
+  form.onsubmit=async e=>{
+    e.preventDefault();
+    const fd=new FormData(form),id=String(fd.get("id")||""),name=String(fd.get("name")||"").trim(),price=Number(fd.get("unit_price"));
+    if(!name||!Number.isFinite(price)||price<0){toast("دخل اسم صحيح وثمن صالح.");return}
+    const itemType=fd.get("item_type")==="drink"?"drink":"food";
+    const payload={name,item_type:itemType,category:String(fd.get("category")||"").trim()||null,unit_price:price,cost_price:Number(fd.get("cost_price")||0),stock_quantity:Number(fd.get("stock_quantity")||0),low_stock_threshold:Number(fd.get("low_stock_threshold")||0),sku:String(fd.get("sku")||"").trim()||null,service_station:itemType==="drink"?"bar":"kitchen",organization_id:orgId};
+    if([payload.cost_price,payload.stock_quantity,payload.low_stock_threshold].some(n=>!Number.isFinite(n)||n<0)){toast("راجع ثمن التكلفة والمخزون؛ خاصهم يكونو أرقام موجبة أو صفر.");return}
+    const result=id?await sb.from("products").update(payload).eq("id",id).eq("organization_id",orgId):await sb.from("products").insert(payload);
+    if(result.error){toast(result.error.message);return}
+    toast(id?"تم تحديث المنتوج والثمن":"تمت إضافة المنتوج للائحة");await productPage(showArchived);
+  };
+  document.querySelectorAll(".edit-product").forEach(btn=>btn.onclick=()=>{
+    const p=products.find(x=>x.id===btn.dataset.id);if(!p)return;
+    $("productId").value=p.id;form.elements.name.value=p.name||"";form.elements.item_type.value=p.item_type||"food";form.elements.category.value=p.category||"";form.elements.unit_price.value=p.unit_price??0;form.elements.cost_price.value=p.cost_price??0;form.elements.stock_quantity.value=p.stock_quantity??0;form.elements.low_stock_threshold.value=p.low_stock_threshold??0;form.elements.sku.value=p.sku||"";
+    $("saveProductBtn").textContent="حفظ التعديلات";$("cancelProductEdit").hidden=false;$("productFormMsg").textContent="كتعدل دابا: "+p.name;form.scrollIntoView({behavior:"smooth",block:"start"});
+  });
+  document.querySelectorAll(".archive-product").forEach(btn=>btn.onclick=async()=>{
+    const p=products.find(x=>x.id===btn.dataset.id);if(!p)return;
+    const nextActive=showArchived;
+    const {error}=await sb.from("products").update({is_active:nextActive}).eq("id",p.id).eq("organization_id",orgId);
+    if(error){toast(error.message);return}
+    toast(nextActive?"تم استرجاع المنتوج":"تم إخفاء المنتوج من اللائحة");await productPage(showArchived);
+  });
+  const applyFilters=()=>{
+    const term=$("productSearch").value.trim().toLocaleLowerCase("ar"),type=$("productTypeFilter").value,category=$("productCategoryFilter").value;
+    document.querySelectorAll("#productRows tr[data-name]").forEach(row=>{row.hidden=!(row.dataset.name.includes(term)&&(!type||row.dataset.type===type)&&(!category||row.dataset.category===category))});
+  };
+  ["productSearch","productTypeFilter","productCategoryFilter"].forEach(id=>$(id).addEventListener(id==="productSearch"?"input":"change",applyFilters));
+}
 async function salesPage(){const {data,error}=await sb.from("products").select("id,name,unit_price,stock_quantity").eq("organization_id",orgId).eq("is_active",true).gt("stock_quantity",0).order("name");if(error){toast(error.message);return}products=data||[];$("content").innerHTML=`<div class="panel"><h3>Enregistrer une vente</h3><p class="muted">Le stock sera diminué automatiquement après validation.</p><form id="saleForm"><label>Produit<select name="product_id" required>${products.map(p=>`<option value="${p.id}">${esc(p.name)} — ${money(p.unit_price)} (Stock: ${p.stock_quantity})</option>`).join("")}</select></label><div class="form-grid"><label>Quantité<input name="quantity" type="number" min=".001" step=".001" value="1" required></label><label>Remise (MAD)<input name="discount" type="number" min="0" step=".01" value="0"></label><label>Taxe (MAD)<input name="tax" type="number" min="0" step=".01" value="0"></label></div><label>Mode de paiement<select name="payment_method"><option value="cash">Espèces</option><option value="card">Carte</option><option value="transfer">Virement</option><option value="other">Autre</option></select></label><label>Note<input name="note"></label><button class="primary">Confirmer la vente</button></form></div><div class="section-head"><h3>Historique des ventes</h3></div><div id="saleHistory" class="panel">Chargement…</div>`;if(!products.length)$("saleForm").querySelector("button").disabled=true;$("saleForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),pid=f.get("product_id"),q=Number(f.get("quantity"));const {data:prod}=await sb.from("products").select("stock_quantity").eq("id",pid).single();if(!prod||q>Number(prod.stock_quantity)){toast("Stock insuffisant");return}const r=await sb.rpc("bizora_create_sale",{p_org:orgId,p_branch:null,p_items:[{product_id:pid,quantity:q}],p_discount:Number(f.get("discount")||0),p_tax:Number(f.get("tax")||0),p_payment_method:f.get("payment_method"),p_note:f.get("note")||null});if(r.error){toast(r.error.message);return}toast("Vente enregistrée");salesPage()};const {data:s}=await sb.from("sales").select("id,total,payment_method,created_at").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(15);$("saleHistory").innerHTML=s?.length?`<table><thead><tr><th>Référence</th><th>Date</th><th>Paiement</th><th>Total</th></tr></thead><tbody>${s.map(x=>`<tr><td>${x.id.slice(0,8).toUpperCase()}</td><td>${new Date(x.created_at).toLocaleString("fr-MA")}</td><td>${esc(x.payment_method)}</td><td>${money(x.total)}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">Aucune vente.</div>'}
 async function ordersPage(){
   const [orderResult, productResult] = await Promise.all([
