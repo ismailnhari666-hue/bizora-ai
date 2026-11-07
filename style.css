@@ -150,3 +150,4 @@ html[dir="rtl"] body,html[dir="rtl"] body .app,html[dir="rtl"] body .main{direct
 #saleHistory .sales-history-wrap{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
 #saleHistory .sales-history-table{width:100%;min-width:550px}
 @media(max-width:600px){#saleHistory{padding:10px}#saleHistory .sales-history-table th,#saleHistory .sales-history-table td{padding:11px 8px;font-size:11px}}
+.dashboard-owner-note{margin:0;color:var(--muted);font-size:14px;line-height:1.8}
