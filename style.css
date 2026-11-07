@@ -105,3 +105,11 @@ table{border-collapse:separate;border-spacing:0}th,td{border-bottom:1px solid #e
 .dashboard-shortcuts h3{margin:0 0 10px}.dashboard-shortcuts button{display:flex;align-items:center;gap:10px;width:100%;padding:12px 4px;border:0;border-bottom:1px solid #edf0f5;background:transparent;color:#34445b;text-align:right}.dashboard-shortcuts button:last-child{border-bottom:0}.dashboard-shortcuts button span{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:#edf5fa;color:#2779a3}.dashboard-shortcuts button b{margin-right:auto;color:#8b9aae}
 @media(max-width:1050px){.dashboard-lower{grid-template-columns:1fr}.dashboard-side{grid-template-columns:1fr 1fr}}
 @media(max-width:650px){.dashboard-welcome{align-items:flex-start;flex-direction:column;padding:19px}.dashboard-welcome h2{font-size:19px}.dashboard-welcome .primary{width:100%}.dashboard-side{grid-template-columns:1fr}.dashboard-stats .stat{min-height:130px}.dashboard-stats .stat strong{font-size:22px}}
+
+/* Locale-aware layout direction */
+[dir="ltr"] .sidebar{border-left:0;border-right:1px solid var(--line);text-align:left}
+[dir="ltr"] .brand,[dir="ltr"] .userline,[dir="ltr"] .nav,[dir="ltr"] .topbar,[dir="ltr"] .top-actions,[dir="ltr"] .section-head,[dir="ltr"] .ticket-top,[dir="ltr"] .ticket-bottom{direction:ltr}
+[dir="ltr"] .panel,[dir="ltr"] .stat,[dir="ltr"] .card,[dir="ltr"] .orgbox,[dir="ltr"] .camera-meta,[dir="ltr"] .camera-feature-list,[dir="ltr"] .kitchen-column{ text-align:left }
+[dir="ltr"] input,[dir="ltr"] select{direction:ltr;text-align:left}
+[dir="ltr"] .sidebar{border-right:1px solid var(--line);border-left:0}
+@media(max-width:900px){[dir="ltr"] .sidebar{border-right:0;border-bottom:1px solid var(--line)}}
