@@ -23,18 +23,23 @@ async function overview(){
   const startOfDay=new Date();
   startOfDay.setHours(0,0,0,0);
   const since=startOfDay.toISOString();
-  const [productResult,salesResult,recentResult,orderResult]=await Promise.all([
+  const [productResult,salesResult,recentResult,orderResult,itemResult]=await Promise.all([
     sb.from("products").select("id,name,stock_quantity,low_stock_threshold").eq("organization_id",orgId).eq("is_active",true),
-    sb.from("sales").select("id,total,created_at").eq("organization_id",orgId).gte("created_at",since),
-    sb.from("sales").select("id,total,created_at").eq("organization_id",orgId).gte("created_at",since).order("created_at",{ascending:false}).limit(8),
-    sb.from("orders").select("id,status").eq("organization_id",orgId)
+    sb.from("sales").select("id,total,created_at").eq("organization_id",orgId).eq("status","completed").gte("created_at",since),
+    sb.from("sales").select("id,total,created_at").eq("organization_id",orgId).eq("status","completed").gte("created_at",since).order("created_at",{ascending:false}).limit(8),
+    sb.from("orders").select("id,status").eq("organization_id",orgId),
+    sb.from("sale_items").select("product_name,quantity,line_total,sales!inner(organization_id,status,created_at)").eq("sales.organization_id",orgId).eq("sales.status","completed").gte("sales.created_at",new Date(Date.now()-7*86400000).toISOString())
   ]);
-  const error=productResult.error||salesResult.error||recentResult.error||orderResult.error;
+  const error=productResult.error||salesResult.error||recentResult.error||orderResult.error||itemResult.error;
   if(error){toast(error.message);return}
   const productRows=productResult.data||[];
   const salesRows=salesResult.data||[];
   const recentRows=recentResult.data||[];
   const orderRows=orderResult.data||[];
+  const itemRows=itemResult.data||[];
+  const bestMap=new Map();
+  itemRows.forEach(row=>{const name=String(row.product_name||"—");const item=bestMap.get(name)||{quantity:0,total:0};item.quantity+=Number(row.quantity||0);item.total+=Number(row.line_total||0);bestMap.set(name,item)});
+  const bestProducts=[...bestMap.entries()].sort((a,b)=>b[1].quantity-a[1].quantity).slice(0,5);
   const revenue=salesRows.reduce((sum,row)=>sum+Number(row.total||0),0);
   const low=productRows.filter(row=>Number(row.stock_quantity||0)<=Number(row.low_stock_threshold||0)).length;
   const pending=orderRows.filter(row=>["pending","preparing","ready"].includes(row.status)).length;
@@ -55,6 +60,7 @@ async function overview(){
         <div class="section-head"><div><h3>آخر المبيعات</h3><span class="muted">أحدث 8 عمليات بيع اليوم</span></div><button class="secondary" onclick="loadPage('sales')">عرض المبيعات</button></div>
         <div class="table-wrap">${recentRows.length?`<table><thead><tr><th>المرجع</th><th>الوقت</th><th>المبلغ</th></tr></thead><tbody>${recentRows.map(row=>`<tr><td><b>#${row.id.slice(0,8).toUpperCase()}</b></td><td>${new Date(row.created_at).toLocaleTimeString(window.BizoraI18n?.locale||"ar-MA",{hour:"2-digit",minute:"2-digit"})}</td><td><b>${money(row.total)}</b></td></tr>`).join("")}</tbody></table>`:'<div class="empty">لا توجد مبيعات اليوم. سجّل أول عملية بيع باش تبان هنا.</div>'}</div>
       </section>
+      <section class="panel dashboard-best"><div class="section-head"><div><h3>المنتجات الأكثر مبيعاً</h3><span class="muted">حسب الكمية خلال آخر 7 أيام</span></div></div>${bestProducts.length?bestProducts.map((item,index)=>`<div class="dashboard-product-row"><span class="dashboard-rank">${index+1}</span><b>${esc(item[0])}</b><small>${item[1].quantity} وحدة</small><strong>${money(item[1].total)}</strong></div>`).join(""):'<div class="empty">لا توجد بيانات مبيعات كافية بعد.</div>'}</section>
       <aside class="dashboard-side">
         <section class="panel dashboard-orders"><span class="dashboard-kicker">متابعة الطلبات</span><strong>${pending}</strong><h3>طلبات جارية</h3><p class="muted">طلبات تنتظر التحضير أو التسليم.</p><button class="secondary" onclick="loadPage('orders')">تدبير الطلبات</button></section>
         <section class="panel dashboard-shortcuts"><h3>اختصارات سريعة</h3><button onclick="loadPage('products')"><span>▦</span> المنتجات والمخزون <b>←</b></button><button onclick="loadPage('reports')"><span>▤</span> التقارير <b>←</b></button><button onclick="loadPage('cameras')"><span>◉</span> الكاميرات <b>←</b></button></section>
