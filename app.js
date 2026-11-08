@@ -18,12 +18,14 @@ function setAuthMode(next){
  $("email").required=!ownerCode;
  $("password").required=!ownerCode;
  $("ownerCode").required=ownerCode;
- $("authSubmit").textContent=ownerCode?"دخول الإدارة":next==="signup"?"إنشاء حساب المحل":"دخول واجهة العمل";
+ $("authSubmit").textContent=ownerCode?"دخول الإدارة":next==="signup"?"إنشاء حساب المحل":next==="owner-recovery"?"استرجاع كود الإدارة":"دخول واجهة العمل";
+ $("ownerRecoveryToggle").classList.toggle("hidden",!ownerCode);
  $("password").autocomplete=next==="signup"?"new-password":"current-password";
  authMessage("");
 }
 document.querySelectorAll(".tab[data-mode]").forEach(button=>button.onclick=()=>setAuthMode(button.dataset.mode));
 setAuthMode("owner-code");
+$("ownerRecoveryToggle").onclick=()=>setAuthMode("owner-recovery");
 
 function showOwnerCodeModal(code){
  $("ownerCodeValue").textContent=String(code||"");
@@ -58,6 +60,7 @@ $("authForm").onsubmit=async e=>{
    :await sb.auth.signInWithPassword({email,password});
   if(result.error){authMessage(result.error.message);return;}
   if(mode==="signup"&&!result.data.session){authMessage("تم إنشاء الحساب. تحقق من بريدك الإلكتروني لتأكيد التسجيل، ثم ادخل بحسابك.");return;}
+  if(mode==="owner-recovery")sessionStorage.setItem("bizora_owner_recovery","1");
   await boot();
  }catch(error){authMessage(error?.message||"وقع خطأ غير متوقع أثناء تسجيل الدخول.");}
  finally{$("authSubmit").disabled=false;}
@@ -121,6 +124,7 @@ async function loadOrganizations(preselect){
  $("navUsers").classList.toggle("hidden",currentRole!=="owner");
  if(currentRole==="owner"){
   const unlocked=sessionStorage.getItem("bizora_owner_unlocked_"+orgId)==="1";
+  const recovering=sessionStorage.getItem("bizora_owner_recovery")==="1";
   let status;
   try{status=await accessRequest({action:"owner_code_status",organization_id:orgId});}
   catch(error){
@@ -129,20 +133,22 @@ async function loadOrganizations(preselect){
    setAuthMode("owner-code");authMessage("تعذر التحقق من حماية الإدارة. حاول الدخول بكود الإدارة من جديد.");
    return;
   }
-  if(status.has_code&&!unlocked){
+  if(status.has_code&&!unlocked&&!recovering){
    await sb.auth.signOut();user=null;sessionStorage.clear();
    $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
    setAuthMode("owner-code");authMessage("أدخل كود الإدارة الخاص بالمحل لفتح لوحة التحكم.");
    return;
   }
-  if(!status.has_code){
+  if(!status.has_code||recovering){
    try{
     const created=await accessRequest({action:"rotate_owner_code",organization_id:orgId});
     sessionStorage.setItem("bizora_owner_unlocked_"+orgId,"1");
+    sessionStorage.removeItem("bizora_owner_recovery");
     showOwnerCodeModal(created.code);
    }catch(error){toast("تعذر إنشاء كود الإدارة: "+error.message);}
   }
  }
+ if(currentRole!=="owner")sessionStorage.removeItem("bizora_owner_recovery");
  if(workerOnly){
   currentPage="worker-ui";
   await loadPage("worker-ui");
