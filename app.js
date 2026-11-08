@@ -117,7 +117,7 @@ async function loadOrganizations(preselect){
  $("orgSelect").value=orgId;
  const activeOrg=orgs.find(o=>o.id===orgId);
  currentRole=activeOrg.role;
- const workerOnly=["staff","cashier","employee","worker"].includes(currentRole);
+ const workerOnly=["staff","cashier","manager","employee","worker"].includes(currentRole);
  document.body.classList.toggle("worker-mode",workerOnly);
  $("orgSelect").closest(".orgbox")?.classList.toggle("hidden",workerOnly);
  $("orgSetup").classList.add("hidden");
@@ -154,7 +154,7 @@ async function loadOrganizations(preselect){
   await loadPage("worker-ui");
   return;
  }
- if(!["owner","manager"].includes(currentRole)){
+ if(currentRole!=="owner"){
   await sb.auth.signOut();user=null;sessionStorage.clear();
   $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
   authMessage("هذا الحساب لا يملك صلاحية الدخول إلى واجهة التطبيق.");
