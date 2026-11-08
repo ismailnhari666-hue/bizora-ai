@@ -27,9 +27,9 @@ function setAuthMode(next){
  $("email").required=!ownerCode;
  $("password").required=!ownerCode;
  $("ownerCode").required=ownerCode;
- $("authSubmit").textContent=ownerCode?"دخول الإدارة":next==="signup"?"إنشاء حساب المحل":next==="owner-recovery"?"استرجاع كود الإدارة":"دخول واجهة العمل";
+ $("authSubmit").textContent=ownerCode?"دخول الإدارة":next==="owner-recovery"?"استرجاع كود الإدارة":"دخول واجهة العمل";
  $("ownerRecoveryToggle").classList.toggle("hidden",!ownerCode);
- $("password").autocomplete=next==="signup"?"new-password":"current-password";
+ $("password").autocomplete="current-password";
  authMessage("");
 }
 document.querySelectorAll(".tab[data-mode]").forEach(button=>button.onclick=()=>setAuthMode(button.dataset.mode));
@@ -64,11 +64,8 @@ $("authForm").onsubmit=async e=>{
    return;
   }
   const email=$("email").value.trim(),password=$("password").value;
-  const result=mode==="signup"
-   ?await sb.auth.signUp({email,password})
-   :await sb.auth.signInWithPassword({email,password});
+  const result=await sb.auth.signInWithPassword({email,password});
   if(result.error){authMessage(result.error.message);return;}
-  if(mode==="signup"&&!result.data.session){authMessage("تم إنشاء الحساب. تحقق من بريدك الإلكتروني لتأكيد التسجيل، ثم ادخل بحسابك.");return;}
   if(mode==="owner-recovery")localStorage.setItem(ownerRecoveryKey(result.data.user.id),"1");
   await boot();
  }catch(error){authMessage(error?.message||"وقع خطأ غير متوقع أثناء تسجيل الدخول.");}
