@@ -64,7 +64,7 @@ $("authForm").onsubmit=async e=>{
 };
 $("logout").onclick=async()=>{sessionStorage.clear();await sb.auth.signOut();location.reload()};
 $("refresh").onclick=()=>loadPage(currentPage);
-$("orgForm").onsubmit=async e=>{e.preventDefault();$("orgMsg").textContent="Création…";const {data,error}=await sb.rpc("bizora_create_organization",{p_name:$("orgName").value.trim()});if(error){$("orgMsg").textContent=error.message;return}toast("Espace créé");await loadOrganizations(data)};
+$("orgForm").onsubmit=async e=>{e.preventDefault();$("orgMsg").textContent="Création…";const {data,error}=await sb.rpc("bizora_create_organization",{p_name:$("orgName").value.trim()});if(error){$("orgMsg").textContent=error.message;return}toast("تم إنشاء المحل");await loadOrganizations(data)};
 $("orgSelect").onchange=async e=>{await loadOrganizations(e.target.value)};
 document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>{if(document.body.classList.contains("worker-mode"))return;loadPage(b.dataset.page)});
 async function boot(){
@@ -338,7 +338,7 @@ async function usersPage(){
   '<div class="team-grid"><section class="panel"><h3>إضافة مستخدم جديد</h3><p class="muted">أنشئ حساباً مستقلاً للعامل. سيدخل بالبريد الإلكتروني وكلمة المرور إلى واجهة العمل فقط.</p>'+
   '<form id="teamForm" class="team-form"><label>الاسم الكامل<input name="name" required minlength="2" maxlength="100" placeholder="اسم العامل"></label><label>البريد الإلكتروني<input name="email" type="email" required placeholder="worker@example.com"></label><label>نوع الحساب<select name="role"><option value="staff">عامل</option><option value="cashier">أمين الصندوق</option></select></label><label>كلمة مرور مؤقتة<input name="password" type="password" minlength="10" required autocomplete="new-password" placeholder="10 أحرف على الأقل"></label><button class="primary" id="createWorkerBtn">إنشاء الحساب</button></form></section>'+
   '<section class="panel"><div class="section-head"><div><h3>حسابات العمال</h3><span class="muted">'+team.length+' حساب</span></div></div><div id="teamList">'+(team.length?team.map(worker=>
-   '<div class="team-member"><div><b>'+esc(worker.name||worker.email||"مستخدم")+'</b><small>'+esc(worker.email)+' • '+(worker.role==="owner"?"صاحب المحل":worker.role==="manager"?"مدير":worker.role==="cashier"?"أمين الصندوق":"عامل")+' • '+(worker.is_active?"نشط":"موقوف")+'</small></div>'+(worker.is_active?'<button class="secondary" data-deactivate="'+worker.user_id+'">إيقاف الحساب</button>':'<span class="badge">موقوف</span>')+'</div>'
+   '<div class="team-member"><div><b>'+esc(worker.name||worker.email||"مستخدم")+'</b><small>'+esc(worker.email)+' • '+(worker.role==="owner"?"صاحب المحل":worker.role==="manager"?"مدير":worker.role==="cashier"?"أمين الصندوق":"عامل")+' • '+(worker.is_active?"نشط":"موقوف")+'</small></div>'+(worker.role!=="owner"&&worker.is_active?'<button class="secondary" data-deactivate="'+worker.user_id+'">إيقاف الحساب</button>':'<span class="badge">'+(worker.is_active?"نشط":"موقوف")+'</span>')+'</div>'
   ).join(""):'<div class="empty">لم تتم إضافة أي عامل بعد.</div>')+'</div></section></div>';
  $("rotateOwnerCode").onclick=async()=>{
   if(!confirm("إصدار كود جديد سيوقف الكود القديم فوراً. هل تريد المتابعة؟"))return;
