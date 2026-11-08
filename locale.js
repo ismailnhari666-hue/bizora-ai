@@ -50,6 +50,7 @@ const EXTRA_ACCESS=[
 ["هذا الحساب موقوف من طرف صاحب المحل. تواصل معه لإعادة تفعيله.","هذا الحساب موقوف من طرف صاحب المحل. تواصل معه لإعادة تفعيله.","Ce compte a été désactivé par le propriétaire. Contactez-le pour le réactiver.","This account has been disabled by the owner. Contact them to reactivate it.","El propietario ha desactivado esta cuenta. Contacta con él para reactivarla.","Dieses Konto wurde vom Inhaber deaktiviert. Wenden Sie sich zur Reaktivierung an ihn.","此账户已被店主停用，请联系店主重新启用。"],
 ["أدخل كود الإدارة الخاص بالمحل لفتح لوحة التحكم.","أدخل كود الإدارة الخاص بالمحل لفتح لوحة التحكم.","Saisissez le code d’administration pour ouvrir le tableau de bord.","Enter the business admin code to open the dashboard.","Introduce el código de administración para abrir el panel.","Geben Sie den Administrationscode ein, um das Dashboard zu öffnen.","输入商家管理代码以打开控制面板。"]
 ];
+EXTRA_ACCESS.push(["نسيت كود الإدارة؟","نسيت كود الإدارة؟","Code oublié ?","Forgot admin code?","¿Olvidaste el código?","Administrationscode vergessen?","忘记管理代码？"],["استرجاع كود الإدارة","استرجاع كود الإدارة","Récupérer le code d’administration","Recover admin code","Recuperar código de administración","Administrationscode wiederherstellen","找回管理代码"]);
 EXTRA_ACCESS.push(["صاحب المحل","صاحب المحل","Propriétaire","Owner","Propietario","Inhaber","店主"],["مدير","مدير","Gestionnaire","Manager","Gerente","Manager","经理"]);
 L.forEach((x,i)=>EXTRA_ACCESS.forEach(row=>{MAP[x[0]][row[0]]=row[i+1];}));
 const EXTRA=[
