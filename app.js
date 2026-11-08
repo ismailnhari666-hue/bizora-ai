@@ -21,15 +21,17 @@ function setAuthMode(next){
  mode=next;
  document.querySelectorAll(".tab[data-mode]").forEach(button=>button.classList.toggle("active",button.dataset.mode===next));
  const ownerCode=next==="owner-code";
+ const ownerSignup=next==="owner-signup";
  $("emailField").classList.toggle("hidden",ownerCode);
  $("passwordField").classList.toggle("hidden",ownerCode);
  $("ownerCodeField").classList.toggle("hidden",!ownerCode);
  $("email").required=!ownerCode;
  $("password").required=!ownerCode;
+ $("password").minLength=ownerSignup?10:6;
+ $("password").autocomplete=ownerSignup?"new-password":"current-password";
  $("ownerCode").required=ownerCode;
- $("authSubmit").textContent=ownerCode?"دخول الإدارة":next==="owner-recovery"?"استرجاع كود الإدارة":"دخول واجهة العمل";
+ $("authSubmit").textContent=ownerCode?"دخول الإدارة":ownerSignup?"إنشاء حساب صاحب المحل":next==="owner-recovery"?"استرجاع كود الإدارة":"دخول واجهة العمل";
  $("ownerRecoveryToggle").classList.toggle("hidden",!ownerCode);
- $("password").autocomplete="current-password";
  authMessage("");
 }
 document.querySelectorAll(".tab[data-mode]").forEach(button=>button.onclick=()=>setAuthMode(button.dataset.mode));
@@ -64,6 +66,20 @@ $("authForm").onsubmit=async e=>{
    return;
   }
   const email=$("email").value.trim(),password=$("password").value;
+  if(mode==="owner-signup"){
+   if(password.length<10){authMessage("كلمة المرور خاصها تكون 10 أحرف على الأقل.");return;}
+   const redirectTo=location.origin+location.pathname;
+   const result=await sb.auth.signUp({email,password,options:{emailRedirectTo:redirectTo}});
+   if(result.error){authMessage(result.error.message);return;}
+   if(result.data.session){
+    authMessage("تم إنشاء الحساب بنجاح. أنشئ مساحة العمل ديال المحل.");
+    await boot();
+   }else{
+    $("password").value="";
+    authMessage("توصلت بطلب إنشاء الحساب. افتح رسالة التأكيد اللي وصلات لبريدك الإلكتروني، ومن بعد رجع للتطبيق وسجّل الدخول.");
+   }
+   return;
+  }
   const result=await sb.auth.signInWithPassword({email,password});
   if(result.error){authMessage(result.error.message);return;}
   if(mode==="owner-recovery")localStorage.setItem(ownerRecoveryKey(result.data.user.id),"1");
