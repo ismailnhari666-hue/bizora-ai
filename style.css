@@ -170,3 +170,10 @@ html[dir="rtl"] body,html[dir="rtl"] body .app,html[dir="rtl"] body .main{direct
 .worker-product-tile.is-empty{opacity:.78}
 @media(max-width:800px){.worker-products{grid-template-columns:repeat(4,minmax(0,1fr))}.worker-layout{grid-template-columns:1fr}}
 @media(max-width:480px){.worker-products{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.worker-product-tile{padding:5px;border-radius:11px}.worker-photo-pick{border-radius:8px}.worker-product-tile .worker-product-info{padding-top:5px}.worker-product-tile .worker-product-info b{font-size:10px;min-height:27px}.worker-product-tile .worker-product-info strong{font-size:11px}.worker-product-tile .worker-add{width:30px;height:30px}}
+
+/* Full-screen employee mode: hide owner/admin navigation */
+body.worker-mode .sidebar,body.worker-mode .topbar,body.worker-mode .main>footer,body.worker-mode #orgSetup{display:none!important}
+body.worker-mode .app{display:block!important;min-height:100vh}
+body.worker-mode .main{width:100%;max-width:none;margin:0;padding:clamp(10px,2vw,24px)}
+body.worker-mode .worker-screen{max-width:1180px;margin:0 auto}
+body.worker-mode .worker-head{margin-top:8px}
