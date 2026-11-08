@@ -46,7 +46,7 @@ $("authForm").onsubmit=async e=>{
       const code=$("ownerCode").value.trim();
    const result=await sb.functions.invoke("bizora-access",{body:{action:"owner_code_login",code}});
    if(result.error||!result.data?.token_hash){authMessage(result.data?.error||result.error?.message||"تعذر التحقق من كود الإدارة.");return;}
-   const verified=await sb.auth.verifyOtp({token_hash:result.data.token_hash,type:"email"});
+   const verified=await sb.auth.verifyOtp({token_hash:result.data.token_hash,type:"magiclink"});
    if(verified.error){authMessage(verified.error.message);return;}
    sessionStorage.setItem("bizora_owner_unlocked_"+result.data.organization_id,"1");
    sessionStorage.setItem("bizora_owner_org_id",result.data.organization_id);
