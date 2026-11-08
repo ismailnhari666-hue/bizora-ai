@@ -10,6 +10,47 @@ de:{"لوحة القيادة":"Dashboard","المنتجات والمخزون":"P
 };
 let current="ar",userId="guest";const originals=new WeakMap(),originalAttrs=new WeakMap();
 const L=languages; const MAP={}; languages.forEach(x=>MAP[x[0]]={});
+const EXTRA_ACCESS=[
+["دخول صاحب المحل","دخول صاحب المحل","Accès propriétaire","Owner access","Acceso del propietario","Inhaberzugang","店主入口"],
+["دخول المستخدم","دخول المستخدم","Accès employé","Staff sign-in","Acceso del personal","Mitarbeiterzugang","员工登录"],
+["إنشاء حساب المحل","إنشاء حساب المحل","Créer le compte du commerce","Create business account","Crear cuenta del negocio","Geschäftskonto erstellen","创建商家账户"],
+["البريد الإلكتروني","البريد الإلكتروني","Adresse e-mail","Email address","Correo electrónico","E-Mail-Adresse","电子邮箱"],
+["كلمة المرور","كلمة المرور","Mot de passe","Password","Contraseña","Passwort","密码"],
+["كود الإدارة","كود الإدارة","Code d’administration","Admin access code","Código de administración","Administrationscode","管理代码"],
+["دخول الإدارة","دخول الإدارة","Ouvrir l’administration","Open administration","Abrir administración","Verwaltung öffnen","进入管理界面"],
+["اسم العامل","اسم العامل","Nom de l’employé","Worker name","Nombre del empleado","Mitarbeitername","员工姓名"],
+["نوع الحساب","نوع الحساب","Type de compte","Account type","Tipo de cuenta","Kontotyp","账户类型"],
+["عامل","عامل","Employé","Staff member","Empleado","Mitarbeiter","员工"],
+["أمين الصندوق","أمين الصندوق","Caissier","Cashier","Cajero","Kassierer","收银员"],
+["كلمة مرور مؤقتة","كلمة مرور مؤقتة","Mot de passe temporaire","Temporary password","Contraseña temporal","Temporäres Passwort","临时密码"],
+["إضافة مستخدم جديد","إضافة مستخدم جديد","Ajouter un utilisateur","Add a user","Añadir usuario","Benutzer hinzufügen","添加用户"],
+["المستخدمون","المستخدمون","Utilisateurs","Users","Usuarios","Benutzer","用户"],
+["كود الإدارة الخاص بالمحل","كود الإدارة الخاص بالمحل","Code d’administration du commerce","Business admin code","Código de administración del negocio","Geschäfts-Administrationscode","商家管理代码"],
+["إعادة إصدار كود الإدارة","إعادة إصدار كود الإدارة","Renouveler le code d’administration","Regenerate admin code","Regenerar código de administración","Administrationscode erneuern","重新生成管理代码"],
+["إنشاء كود الإدارة","إنشاء كود الإدارة","Créer le code d’administration","Create admin code","Crear código de administración","Administrationscode erstellen","创建管理代码"],
+["نسخ الكود","نسخ الكود","Copier le code","Copy code","Copiar código","Code kopieren","复制代码"],
+["احتفظت بالكود","احتفظت بالكود","J’ai enregistré le code","I saved the code","He guardado el código","Ich habe den Code gespeichert","我已保存代码"],
+["إيقاف الحساب","إيقاف الحساب","Désactiver le compte","Deactivate account","Desactivar cuenta","Konto deaktivieren","停用账户"],
+["نشط","نشط","Actif","Active","Activo","Aktiv","启用"],
+["موقوف","موقوف","Désactivé","Disabled","Desactivado","Deaktiviert","已停用"],
+["إدارة العمال","إدارة العمال","Gestion de l’équipe","Team management","Gestión del equipo","Teamverwaltung","团队管理"],
+["حسابات العمال","حسابات العمال","Comptes des employés","Worker accounts","Cuentas del personal","Mitarbeiterkonten","员工账户"],
+["تتبع الطلبات","تتبع الطلبات","Suivi des commandes","Order tracking","Seguimiento de pedidos","Bestellverfolgung","订单跟踪"],
+["تحديث الطلبات","تحديث الطلبات","Actualiser les commandes","Refresh orders","Actualizar pedidos","Bestellungen aktualisieren","刷新订单"],
+["الطلبات الجديدة","الطلبات الجديدة","Nouvelles commandes","New orders","Pedidos nuevos","Neue Bestellungen","新订单"],
+["قيد التحضير","قيد التحضير","En préparation","Preparing","En preparación","In Zubereitung","准备中"],
+["جاهز","جاهز","Prêt","Ready","Listo","Bereit","已准备好"],
+["تم التقديم","تم التقديم","Servie","Served","Servido","Serviert","已上菜"],
+["مكتمل","مكتمل","Terminée","Completed","Completado","Abgeschlossen","已完成"],
+["ملغي","ملغي","Annulée","Cancelled","Cancelado","Storniert","已取消"],
+["تأكيد الطلب","تأكيد الطلب","Valider la commande","Place order","Crear pedido","Bestellung aufgeben","提交订单"],
+["لا توجد طلبات حالياً","لا توجد طلبات حالياً","Aucune commande pour le moment","No orders yet","Todavía no hay pedidos","Noch keine Bestellungen","暂无订单"],
+["اختار الطاولة","اختار الطاولة","Choisir une table","Choose a table","Elegir una mesa","Tisch auswählen","选择桌号"],
+["واجهة العمل","واجهة العمل","Espace de travail","Work area","Área de trabajo","Arbeitsbereich","工作界面"],
+["هذا الحساب موقوف من طرف صاحب المحل. تواصل معه لإعادة تفعيله.","هذا الحساب موقوف من طرف صاحب المحل. تواصل معه لإعادة تفعيله.","Ce compte a été désactivé par le propriétaire. Contactez-le pour le réactiver.","This account has been disabled by the owner. Contact them to reactivate it.","El propietario ha desactivado esta cuenta. Contacta con él para reactivarla.","Dieses Konto wurde vom Inhaber deaktiviert. Wenden Sie sich zur Reaktivierung an ihn.","此账户已被店主停用，请联系店主重新启用。"],
+["أدخل كود الإدارة الخاص بالمحل لفتح لوحة التحكم.","أدخل كود الإدارة الخاص بالمحل لفتح لوحة التحكم.","Saisissez le code d’administration pour ouvrir le tableau de bord.","Enter the business admin code to open the dashboard.","Introduce el código de administración para abrir el panel.","Geben Sie den Administrationscode ein, um das Dashboard zu öffnen.","输入商家管理代码以打开控制面板。"]
+];
+L.forEach((x,i)=>EXTRA_ACCESS.forEach(row=>{MAP[x[0]][row[0]]=row[i+1];}));
 const EXTRA=[
 ["ملخص النشاط التجاري","ملخص النشاط التجاري","Résumé de l’activité","Business overview","Resumen del negocio","Geschäftsübersicht","业务概览"],
 ["نظرة سريعة على أداء مؤسستك اليوم.","نظرة سريعة على أداء مؤسستك اليوم.","Aperçu des performances de votre entreprise aujourd’hui.","A quick look at your business performance today.","Un vistazo al rendimiento de tu negocio hoy.","Ein kurzer Überblick über Ihre Geschäftsleistung heute.","快速查看您企业今天的经营表现。"],
