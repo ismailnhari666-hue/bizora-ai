@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#f3f6fb"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/bizora-icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icons/bizora-icon.svg"><meta name="description" content="Bizora Digital — منصة ذكية لإدارة المبيعات والمنتجات والطلبات والنشاط التجاري.">
-<title>Bizora Digital</title><link rel="stylesheet" href="style.css?v=20261108-owner-onboarding04">
+<title>Bizora Digital</title><link rel="stylesheet" href="style.css?v=20261108-logout01">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -22,14 +22,14 @@
 </form><button type="button" id="ownerRecoveryToggle" class="ghost full">نسيت كود الإدارة؟</button><p id="authMsg" class="notice" aria-live="polite"></p>
 </section></div>
 <div id="appView" class="app hidden"><aside class="sidebar">
-<div class="brand"><span class="brand-mark small">B</span><div><b>Bizora <i>Digital</i></b><small>BUSINESS MANAGEMENT</small></div></div>
+<div class="brand"><span class="brand-mark small">B</span><div><b>Bizora <i>Digital</i></b><small>BUSINESS MANAGEMENT</small></div><button type="button" id="logout" class="sidebar-logout">تسجيل الخروج</button></div>
 <div class="orgbox"><small>مساحة العمل</small><select id="orgSelect"></select></div>
 <nav><button class="nav active" data-page="overview">◫ <span>لوحة القيادة</span></button><button class="nav" data-page="products">▦ <span>المنتجات والمخزون</span></button><button class="nav" data-page="sales">↗ <span>المبيعات</span></button><button class="nav" data-page="orders">☷ <span>الطلبات</span></button><button class="nav" data-page="cameras">◉ <span>الكاميرات</span></button><button class="nav" data-page="reports">▤ <span>التقارير</span></button><button class="nav" data-page="users" id="navUsers">♙ <span>المستخدمون</span></button><button class="nav" data-page="settings">⚙ <span>الإعدادات</span></button></nav>
-<div class="side-bottom"><div class="userline"><div class="avatar" id="avatar">U</div><div><b id="userEmail">Utilisateur</b><small>الحساب متصل</small></div></div><button id="logout" class="ghost full">تسجيل الخروج</button></div>
+<div class="side-bottom"><div class="userline"><div class="avatar" id="avatar">U</div><div><b id="userEmail">Utilisateur</b><small>الحساب متصل</small></div></div></div>
 </aside><main class="main"><header class="topbar"><div><p class="eyebrow">مركز إدارة النشاط</p><h2 id="pageTitle">لوحة القيادة</h2></div><div class="top-actions"><button class="primary" id="installAppDashboard">تثبيت Bizora</button><span class="status"><i></i> قاعدة البيانات متصلة</span><button class="icon-btn" id="refresh">↻</button></div></header>
 <section id="orgSetup" class="panel hidden"><h3>مرحباً بك في Bizora Digital</h3><p class="muted">أنشئ مساحة العمل ديال المؤسسة باش تبدا تدير النشاط التجاري.</p><form id="orgForm" class="inline-form"><input id="orgName" required placeholder="اسم المؤسسة"><button class="primary">إنشاء مساحة العمل</button></form><p id="orgMsg" class="notice"></p></section>
 <section id="content"></section><footer>Bizora Digital <span>•</span> إدارة ذكية لنشاطك التجاري</footer></main></div>
-<div id="ownerCodeModal" class="owner-code-modal hidden" role="dialog" aria-modal="true" aria-labelledby="ownerCodeTitle"><div class="owner-code-card"><span class="eyebrow">BIZORA DIGITAL • SECURITY</span><h2 id="ownerCodeTitle">كود الإدارة الخاص بالمحل</h2><p>احتفظ بهذا الكود في مكان آمن. لن يظهر كاملاً مرة أخرى بعد إغلاق هذه النافذة.</p><strong id="ownerCodeValue" dir="ltr"></strong><div class="owner-code-actions"><button id="copyOwnerCode" class="secondary">نسخ الكود</button><button id="closeOwnerCode" class="primary">احتفظت بالكود</button></div><small>لا تشارك هذا الكود مع العمال أو أي شخص غير مخوّل.</small></div></div><div id="toast" class="toast"></div><script src="locale.js?v=20261108-owner-onboarding04"></script><script src="app.js?v=20261108-owner-onboarding04"></script>
+<div id="ownerCodeModal" class="owner-code-modal hidden" role="dialog" aria-modal="true" aria-labelledby="ownerCodeTitle"><div class="owner-code-card"><span class="eyebrow">BIZORA DIGITAL • SECURITY</span><h2 id="ownerCodeTitle">كود الإدارة الخاص بالمحل</h2><p>احتفظ بهذا الكود في مكان آمن. لن يظهر كاملاً مرة أخرى بعد إغلاق هذه النافذة.</p><strong id="ownerCodeValue" dir="ltr"></strong><div class="owner-code-actions"><button id="copyOwnerCode" class="secondary">نسخ الكود</button><button id="closeOwnerCode" class="primary">احتفظت بالكود</button></div><small>لا تشارك هذا الكود مع العمال أو أي شخص غير مخوّل.</small></div></div><div id="toast" class="toast"></div><script src="locale.js?v=20261108-logout01"></script><script src="app.js?v=20261108-logout01"></script>
 <script>
 let bizoraInstallPrompt = null;
 const installButtons = [document.getElementById("installApp"), document.getElementById("installAppDashboard")].filter(Boolean);
