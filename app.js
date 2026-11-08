@@ -77,34 +77,52 @@ let workerCart=[];
 function workerOrderInterface(){
  const lang=window.BizoraI18n?.language||"ar";
  const words={
- ar:["واجهة تسجيل الطلبات","واجهة العامل — معاينة التصميم","المأكولات","المشروبات","الكل","ابحث عن منتج…","الطلب الحالي","مازال ما ضفتي حتى منتج","الكمية","المجموع","تأكيد الطلب (تجريبي)","مسح الطلب","إضافة","هذه معاينة للواجهة فقط. الطلبات لا تُحفظ ولا تُرسل.","رقم الطاولة","اختر الطاولة"],
- fr:["Saisie des commandes","Interface employé — aperçu","Plats","Boissons","Tout","Rechercher un produit…","Commande en cours","Aucun article ajouté","Qté","Total","Valider (démo)","Vider","Ajouter","Aperçu uniquement. Aucune commande n’est enregistrée ou envoyée.","Table","Choisir une table"],
- en:["Order entry","Staff interface — design preview","Food","Drinks","All","Search products…","Current order","No items added yet","Qty","Total","Confirm order (demo)","Clear order","Add","Preview only. Orders are not saved or sent.","Table","Choose a table"],
- es:["Registro de pedidos","Interfaz del empleado — vista previa","Comida","Bebidas","Todo","Buscar productos…","Pedido actual","Aún no hay productos","Cant.","Total","Confirmar (demo)","Vaciar","Añadir","Solo vista previa. Los pedidos no se guardan ni se envían.","Mesa","Elegir mesa"],
- de:["Bestellerfassung","Mitarbeiteroberfläche — Vorschau","Speisen","Getränke","Alle","Produkt suchen…","Aktuelle Bestellung","Noch keine Artikel","Menge","Gesamt","Bestätigen (Demo)","Leeren","Hinzufügen","Nur Vorschau. Bestellungen werden nicht gespeichert oder gesendet.","Tisch","Tisch auswählen"],
- "zh-CN":["订单录入","员工界面 — 设计预览","食品","饮料","全部","搜索商品…","当前订单","尚未添加商品","数量","总计","确认订单（演示）","清空","添加","仅供预览。订单不会保存或发送。","桌号","选择桌号"]
+ ar:{title:"واجهة العامل",sub:"اختار المأكولات أو المشروبات",food:"المأكولات",drink:"المشروبات",all:"الكل",search:"ابحث عن منتج…",cart:"الطلب الحالي",empty:"مازال ما ضفتي حتى منتج",qty:"الكمية",total:"المجموع",confirm:"تأكيد الطلب (تجريبي)",clear:"مسح الطلب",add:"إضافة",preview:"معاينة الواجهة فقط — الصور المختارة مؤقتة ولا تُحفظ.",table:"رقم الطاولة",choose:"اختر الطاولة",photo:"إضافة صورة",emptySlot:"مكان منتج",noPhoto:"صورة المنتج",currency:"درهم"},
+ fr:{title:"Interface employé",sub:"Choisissez des plats ou des boissons",food:"Plats",drink:"Boissons",all:"Tout",search:"Rechercher un produit…",cart:"Commande en cours",empty:"Aucun article ajouté",qty:"Qté",total:"Total",confirm:"Valider (démo)",clear:"Vider",add:"Ajouter",preview:"Aperçu uniquement — les photos choisies sont temporaires.",table:"Table",choose:"Choisir une table",photo:"Ajouter une photo",emptySlot:"Emplacement produit",noPhoto:"Photo du produit",currency:"MAD"},
+ en:{title:"Staff interface",sub:"Choose food or drinks",food:"Food",drink:"Drinks",all:"All",search:"Search products…",cart:"Current order",empty:"No items added yet",qty:"Qty",total:"Total",confirm:"Confirm order (demo)",clear:"Clear order",add:"Add",preview:"Preview only — selected photos are temporary.",table:"Table",choose:"Choose a table",photo:"Add photo",emptySlot:"Product slot",noPhoto:"Product photo",currency:"MAD"},
+ es:{title:"Interfaz del empleado",sub:"Elige comida o bebidas",food:"Comida",drink:"Bebidas",all:"Todo",search:"Buscar producto…",cart:"Pedido actual",empty:"Aún no hay productos",qty:"Cant.",total:"Total",confirm:"Confirmar (demo)",clear:"Vaciar",add:"Añadir",preview:"Solo vista previa — las fotos elegidas son temporales.",table:"Mesa",choose:"Elegir mesa",photo:"Añadir foto",emptySlot:"Espacio de producto",noPhoto:"Foto del producto",currency:"MAD"},
+ de:{title:"Mitarbeiteroberfläche",sub:"Speisen oder Getränke auswählen",food:"Speisen",drink:"Getränke",all:"Alle",search:"Produkt suchen…",cart:"Aktuelle Bestellung",empty:"Noch keine Artikel",qty:"Menge",total:"Gesamt",confirm:"Bestätigen (Demo)",clear:"Leeren",add:"Hinzufügen",preview:"Nur Vorschau — ausgewählte Fotos sind temporär.",table:"Tisch",choose:"Tisch auswählen",photo:"Foto hinzufügen",emptySlot:"Produktplatz",noPhoto:"Produktfoto",currency:"MAD"},
+ "zh-CN":{title:"员工界面",sub:"选择食品或饮料",food:"食品",drink:"饮料",all:"全部",search:"搜索商品…",cart:"当前订单",empty:"尚未添加商品",qty:"数量",total:"总计",confirm:"确认（演示）",clear:"清空",add:"添加",preview:"仅供预览 — 所选照片为临时照片。",table:"桌号",choose:"选择桌号",photo:"添加照片",emptySlot:"商品位置",noPhoto:"商品照片",currency:"MAD"}
  };
  const t=words[lang]||words.ar;
- const demo=[{id:1,name:{ar:"بيتزا مارغريتا",fr:"Pizza Margherita",en:"Margherita pizza",es:"Pizza margarita",de:"Pizza Margherita","zh-CN":"玛格丽特披萨"}[lang]||"بيتزا مارغريتا",type:"food",price:55,icon:"🍕"},{id:2,name:{ar:"برغر دجاج",fr:"Burger au poulet",en:"Chicken burger",es:"Hamburguesa de pollo",de:"Hähnchenburger","zh-CN":"鸡肉汉堡"}[lang]||"برغر دجاج",type:"food",price:42,icon:"🍔"},{id:3,name:{ar:"سلطة خضراء",fr:"Salade verte",en:"Green salad",es:"Ensalada verde",de:"Grüner Salat","zh-CN":"蔬菜沙拉"}[lang]||"سلطة خضراء",type:"food",price:28,icon:"🥗"},{id:4,name:{ar:"عصير برتقال",fr:"Jus d’orange",en:"Orange juice",es:"Zumo de naranja",de:"Orangensaft","zh-CN":"橙汁"}[lang]||"عصير برتقال",type:"drink",price:18,icon:"🧃"},{id:5,name:{ar:"قهوة",fr:"Café",en:"Coffee",es:"Café",de:"Kaffee","zh-CN":"咖啡"}[lang]||"قهوة",type:"drink",price:12,icon:"☕"},{id:6,name:{ar:"ماء معدني",fr:"Eau minérale",en:"Mineral water",es:"Agua mineral",de:"Mineralwasser","zh-CN":"矿泉水"}[lang]||"ماء معدني",type:"drink",price:8,icon:"💧"}];
- let filter="all";
+ const names=[
+  {id:1,name:{ar:"بيتزا مارغريتا",fr:"Pizza Margherita",en:"Margherita pizza",es:"Pizza margarita",de:"Pizza Margherita","zh-CN":"玛格丽特披萨"}[lang]||"بيتزا مارغريتا",type:"food",price:55},
+  {id:2,name:{ar:"برغر دجاج",fr:"Burger au poulet",en:"Chicken burger",es:"Hamburguesa de pollo",de:"Hähnchenburger","zh-CN":"鸡肉汉堡"}[lang]||"برغر دجاج",type:"food",price:42},
+  {id:3,name:{ar:"سلطة خضراء",fr:"Salade verte",en:"Green salad",es:"Ensalada verde",de:"Grüner Salat","zh-CN":"蔬菜沙拉"}[lang]||"سلطة خضراء",type:"food",price:28},
+  {id:4,name:{ar:"عصير برتقال",fr:"Jus d’orange",en:"Orange juice",es:"Zumo de naranja",de:"Orangensaft","zh-CN":"橙汁"}[lang]||"عصير برتقال",type:"drink",price:18},
+  {id:5,name:{ar:"قهوة",fr:"Café",en:"Coffee",es:"Café",de:"Kaffee","zh-CN":"咖啡"}[lang]||"قهوة",type:"drink",price:12},
+  {id:6,name:{ar:"ماء معدني",fr:"Eau minérale",en:"Mineral water",es:"Agua mineral",de:"Mineralwasser","zh-CN":"矿泉水"}[lang]||"ماء معدني",type:"drink",price:8}
+ ];
+ let filter="food";
+ const imageMap={};
  const moneyUI=n=>money(n);
- $("content").innerHTML='<div class="worker-screen"><div class="worker-head"><div><span class="worker-kicker">'+t[1]+'</span><h2>'+t[0]+'</h2></div><span class="worker-preview-badge">UI Preview</span></div><div class="worker-layout"><section class="worker-menu"><div class="worker-toolbar"><div class="worker-tabs"><button class="active" data-filter="all">'+t[4]+'</button><button data-filter="food">🍽 '+t[2]+'</button><button data-filter="drink">🥤 '+t[3]+'</button></div><input id="workerSearch" placeholder="'+t[5]+'"></div><div id="workerProducts" class="worker-products"></div></section><aside class="worker-order"><div class="worker-order-head"><div><h3>'+t[6]+'</h3><small><span id="workerCount">0</span> '+t[8]+'</small></div><button id="workerClear" class="ghost">'+t[11]+'</button></div><label class="worker-table-label">'+t[14]+'<select><option>'+t[15]+'</option>'+Array.from({length:12},(_,i)=>'<option>'+(i+1)+'</option>').join("")+'</select></label><div id="workerCart" class="worker-cart"></div><div class="worker-total"><span>'+t[9]+'</span><strong id="workerTotal">'+moneyUI(0)+'</strong></div><button id="workerSend" class="primary worker-submit">'+t[10]+'</button><p class="worker-demo-note">'+t[13]+'</p></aside></div></div>';
+ $("content").innerHTML='<div class="worker-screen"><div class="worker-head"><div><span class="worker-kicker">'+esc(t.sub)+'</span><h2>'+esc(t.title)+'</h2></div><span class="worker-preview-badge">4 × 4</span></div><div class="worker-layout"><section class="worker-menu"><div class="worker-toolbar"><div class="worker-tabs"><button class="active" data-filter="food">🍽 '+esc(t.food)+'</button><button data-filter="drink">🥤 '+esc(t.drink)+'</button></div><input id="workerSearch" type="search" placeholder="'+esc(t.search)+'"></div><div id="workerProducts" class="worker-products"></div></section><aside class="worker-order"><div class="worker-order-head"><div><h3>'+esc(t.cart)+'</h3><small><span id="workerCount">0</span> '+esc(t.qty)+'</small></div><button id="workerClear" class="ghost">'+esc(t.clear)+'</button></div><label class="worker-table-label">'+esc(t.table)+'<select id="workerTable"><option value="">'+esc(t.choose)+'</option>'+Array.from({length:12},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+'</option>').join("")+'</select></label><div id="workerCart" class="worker-cart"></div><div class="worker-total"><span>'+esc(t.total)+'</span><strong id="workerTotal">'+moneyUI(0)+'</strong></div><button id="workerSend" class="primary worker-submit">'+esc(t.confirm)+'</button><p class="worker-demo-note">'+esc(t.preview)+'</p></aside></div></div>';
  workerCart=[];
  const render=()=>{
   const query=($("workerSearch").value||"").toLocaleLowerCase();
-  const shown=demo.filter(p=>(filter==="all"||p.type===filter)&&p.name.toLocaleLowerCase().includes(query));
-  $("workerProducts").innerHTML=shown.map(p=>'<article class="worker-product"><div class="worker-product-icon">'+p.icon+'</div><div class="worker-product-info"><b>'+esc(p.name)+'</b><small>'+(p.type==="food"?t[2]:t[3])+'</small><strong>'+moneyUI(p.price)+'</strong></div><button class="worker-add" data-add="'+p.id+'">+</button></article>').join("")||'<div class="empty">—</div>';
-  $("workerCart").innerHTML=workerCart.length?workerCart.map(x=>'<div class="worker-cart-row"><span>'+esc(x.name)+'</span><div class="worker-qty"><button data-dec="'+x.id+'">−</button><b>'+x.qty+'</b><button data-inc="'+x.id+'">+</button></div><strong>'+moneyUI(x.qty*x.price)+'</strong></div>').join(""):'<div class="worker-empty">'+t[7]+'</div>';
+  const shown=names.filter(p=>p.type===filter&&p.name.toLocaleLowerCase().includes(query));
+  const slots=Array.from({length:16},(_,i)=>shown[i]||null);
+  $("workerProducts").innerHTML=slots.map((p,i)=>{
+   const key=p?String(p.id):"empty-"+filter+"-"+i;
+   const photo=imageMap[key];
+   return '<article class="worker-product-tile '+(p?"has-product":"is-empty")+'"><label class="worker-photo-pick" for="worker-photo-'+key+'">'+(photo?'<img src="'+photo+'" alt="'+esc(p?.name||t.noPhoto)+'">':'<span class="worker-photo-placeholder">＋<small>'+esc(t.photo)+'</small></span>')+'</label><input class="worker-photo-input" id="worker-photo-'+key+'" type="file" accept="image/*" data-photo="'+key+'"><div class="worker-product-info">'+(p?'<b>'+esc(p.name)+'</b><strong>'+moneyUI(p.price)+'</strong>':'<b>'+esc(t.emptySlot)+'</b><small>'+esc(t.noPhoto)+'</small><strong>— '+esc(t.currency)+'</strong>')+'</div>'+(p?'<button class="worker-add" data-add="'+p.id+'" aria-label="'+esc(t.add)+' '+esc(p.name)+'">+</button>':'')+'</article>';
+  }).join("");
+  $("workerCart").innerHTML=workerCart.length?workerCart.map(x=>'<div class="worker-cart-row"><span>'+esc(x.name)+'</span><div class="worker-qty"><button data-dec="'+x.id+'">−</button><b>'+x.qty+'</b><button data-inc="'+x.id+'">+</button></div><strong>'+moneyUI(x.qty*x.price)+'</strong></div>').join(""):'<div class="worker-empty">'+esc(t.empty)+'</div>';
   $("workerTotal").textContent=moneyUI(workerCart.reduce((sum,x)=>sum+x.qty*x.price,0));
   $("workerCount").textContent=workerCart.reduce((sum,x)=>sum+x.qty,0);
-  $("workerProducts").querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const p=demo.find(x=>x.id===Number(b.dataset.add));const old=workerCart.find(x=>x.id===p.id);old?old.qty++:workerCart.push({...p,qty:1});render()});
+  $("workerProducts").querySelectorAll("[data-photo]").forEach(input=>input.onchange=()=>{
+   const file=input.files?.[0];if(!file)return;
+   if(!file.type.startsWith("image/")||file.size>4*1024*1024){toast(lang==="ar"?"اختار صورة أقل من 4 ميغابايت.":"Choose an image smaller than 4 MB.");input.value="";return}
+   const reader=new FileReader();reader.onload=()=>{imageMap[input.dataset.photo]=reader.result;render()};reader.readAsDataURL(file);
+  });
+  $("workerProducts").querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const p=names.find(x=>x.id===Number(b.dataset.add));const old=workerCart.find(x=>x.id===p.id);old?old.qty++:workerCart.push({...p,qty:1});render()});
   $("workerCart").querySelectorAll("[data-inc]").forEach(b=>b.onclick=()=>{const x=workerCart.find(x=>x.id===Number(b.dataset.inc));if(x)x.qty++;render()});
   $("workerCart").querySelectorAll("[data-dec]").forEach(b=>b.onclick=()=>{const x=workerCart.find(x=>x.id===Number(b.dataset.dec));if(x){x.qty--;if(x.qty<=0)workerCart=workerCart.filter(y=>y.id!==x.id)}render()});
  };
  $("workerSearch").oninput=render;
  document.querySelectorAll("[data-filter]").forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));render()});
  $("workerClear").onclick=()=>{workerCart=[];render()};
- $("workerSend").onclick=()=>toast(t[13]);
+ $("workerSend").onclick=()=>toast(t.preview);
  render();
 }
 
