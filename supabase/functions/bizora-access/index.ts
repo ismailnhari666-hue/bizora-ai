@@ -27,7 +27,7 @@ async function sha256(value: string): Promise<string> {
 }
 async function authenticatedUser(req: Request) {
   const header = req.headers.get("Authorization") || "";
-  const token = header.replace(/^Bearer\\s+/i, "").trim();
+    const token = (header.toLowerCase().startsWith("bearer ") ? header.slice(7) : header).trim();
   if (!token) return null;
   const { data, error } = await admin.auth.getUser(token);
   return error ? null : data.user;
@@ -46,8 +46,8 @@ function getIp(req: Request) {
     "unknown-client";
 }
 async function ownerCodeLogin(req: Request, body: Record<string, unknown>) {
-  const code = String(body.code || "").replace(/\\s/g, "");
-  if (!/^\\d{12}$/.test(code)) return response({ error: "Invalid access code." }, 400);
+    const code = String(body.code || "").trim();
+    if (code.length !== 12 || [...code].some((digit) => digit < "0" || digit > "9")) return response({ error: "Invalid access code." }, 400);
   const ipHash = await sha256(String(serviceKey) + ":bizora-owner-ip:" + getIp(req));
   const { data: allowed, error: rateError } = await admin.rpc(
     "bizora_owner_code_rate_limit", { p_ip_hash: ipHash, p_success: null },
@@ -148,7 +148,7 @@ async function authenticatedAction(req: Request, body: Record<string, unknown>) 
     const password = String(body.password || "");
     const name = String(body.name || "").trim();
     const role = String(body.role || "staff");
-    if (!/^\\S+@\\S+\\.\\S+$/.test(email)) {
+        if (!email.includes("@") || email.indexOf("@") < 1 || email.lastIndexOf(".") < email.indexOf("@") + 2 || email.endsWith(".")) {
       return response({ error: "Enter a valid worker email address." }, 400);
     }
     if (password.length < 10) {
