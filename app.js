@@ -3,22 +3,161 @@ const SUPABASE_URL = "https://pywdltkplgvbxdejqext.supabase.co";
 const SUPABASE_KEY = "sb_publishable_8IJRRATLzn3H4CLz1jXw3Q_LuIgS3pw";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
-let mode="login", user=null, orgs=[], orgId=null, products=[], currentPage="overview";
+let mode="owner-code", user=null, orgs=[], orgId=null, products=[], currentPage="overview", currentRole=null, workerRefreshTimer=null;
 const money=n=>new Intl.NumberFormat(window.BizoraI18n?.locale||"fr-MA",{style:"currency",currency:"MAD"}).format(Number(n||0));
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function toast(msg){$("toast").textContent=msg;$("toast").style.display="block";setTimeout(()=>$("toast").style.display="none",3200)}
 function authMessage(msg){$("authMsg").textContent=msg}
-document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{mode=b.dataset.mode;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));$("authSubmit").textContent=mode==="login"?"Se connecter":"Créer mon compte";$("password").autocomplete=mode==="login"?"current-password":"new-password";authMessage("")});
-$("authForm").onsubmit=async e=>{e.preventDefault();authMessage("Patientez…");const email=$("email").value.trim(),password=$("password").value;const r=mode==="login"?await sb.auth.signInWithPassword({email,password}):await sb.auth.signUp({email,password});if(r.error)return authMessage(r.error.message);if(mode==="signup"&&!r.data.session)return authMessage("Compte créé. Vérifiez votre email pour confirmer l'inscription.");await boot()};
-$("logout").onclick=async()=>{await sb.auth.signOut();location.reload()};
+function setAuthMode(next){
+ mode=next;
+ document.querySelectorAll(".tab[data-mode]").forEach(button=>button.classList.toggle("active",button.dataset.mode===next));
+ const ownerCode=next==="owner-code";
+ $("emailField").classList.toggle("hidden",ownerCode);
+ $("passwordField").classList.toggle("hidden",ownerCode);
+ $("ownerCodeField").classList.toggle("hidden",!ownerCode);
+ $("email").required=!ownerCode;
+ $("password").required=!ownerCode;
+ $("ownerCode").required=ownerCode;
+ $("authSubmit").textContent=ownerCode?"دخول الإدارة":next==="signup"?"إنشاء حساب المحل":"دخول واجهة العمل";
+ $("password").autocomplete=next==="signup"?"new-password":"current-password";
+ authMessage("");
+}
+document.querySelectorAll(".tab[data-mode]").forEach(button=>button.onclick=()=>setAuthMode(button.dataset.mode));
+setAuthMode("owner-code");
+
+function showOwnerCodeModal(code){
+ $("ownerCodeValue").textContent=String(code||"");
+ $("ownerCodeModal").classList.remove("hidden");
+}
+$("copyOwnerCode").onclick=async()=>{
+ try{await navigator.clipboard.writeText($("ownerCodeValue").textContent);toast("تم نسخ كود الإدارة");}
+ catch{toast("تعذر النسخ تلقائياً. احتفظ بالكود يدوياً.");}
+};
+$("closeOwnerCode").onclick=()=>{$("ownerCodeModal").classList.add("hidden");$("ownerCodeValue").textContent="";};
+
+$("authForm").onsubmit=async e=>{
+ e.preventDefault();
+ $("authSubmit").disabled=true;
+ authMessage("جاري التحقق…");
+ try{
+  if(mode==="owner-code"){
+   const code=$("ownerCode").value.replace(/\\s/g,"");
+   const result=await sb.functions.invoke("bizora-access",{body:{action:"owner_code_login",code}});
+   if(result.error||!result.data?.token_hash){authMessage(result.data?.error||result.error?.message||"تعذر التحقق من كود الإدارة.");return;}
+   const verified=await sb.auth.verifyOtp({token_hash:result.data.token_hash,type:"email"});
+   if(verified.error){authMessage(verified.error.message);return;}
+   sessionStorage.setItem("bizora_owner_unlocked_"+result.data.organization_id,"1");
+   sessionStorage.setItem("bizora_owner_org_id",result.data.organization_id);
+   $("ownerCode").value="";
+   await boot();
+   return;
+  }
+  const email=$("email").value.trim(),password=$("password").value;
+  const result=mode==="signup"
+   ?await sb.auth.signUp({email,password})
+   :await sb.auth.signInWithPassword({email,password});
+  if(result.error){authMessage(result.error.message);return;}
+  if(mode==="signup"&&!result.data.session){authMessage("تم إنشاء الحساب. تحقق من بريدك الإلكتروني لتأكيد التسجيل، ثم ادخل بحسابك.");return;}
+  await boot();
+ }catch(error){authMessage(error?.message||"وقع خطأ غير متوقع أثناء تسجيل الدخول.");}
+ finally{$("authSubmit").disabled=false;}
+};
+$("logout").onclick=async()=>{sessionStorage.clear();await sb.auth.signOut();location.reload()};
 $("refresh").onclick=()=>loadPage(currentPage);
 $("orgForm").onsubmit=async e=>{e.preventDefault();$("orgMsg").textContent="Création…";const {data,error}=await sb.rpc("bizora_create_organization",{p_name:$("orgName").value.trim()});if(error){$("orgMsg").textContent=error.message;return}toast("Espace créé");await loadOrganizations(data)};
-$("orgSelect").onchange=async e=>{orgId=e.target.value;await loadPage(currentPage)};
+$("orgSelect").onchange=async e=>{await loadOrganizations(e.target.value)};
 document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>{if(document.body.classList.contains("worker-mode"))return;loadPage(b.dataset.page)});
-async function boot(){const {data:{session}}=await sb.auth.getSession();user=session?.user||null;if(!user){window.BizoraI18n?.mount("guest");$("authView").classList.remove("hidden");$("appView").classList.add("hidden");return}$("authView").classList.add("hidden");$("appView").classList.remove("hidden");$("userEmail").textContent=user.email||"Utilisateur";$("avatar").textContent=(user.email||"U")[0].toUpperCase();window.BizoraI18n?.mount(user.id);await loadOrganizations()}
-async function loadOrganizations(preselect){const {data,error}=await sb.from("memberships").select("organization_id,role,organizations(id,name,currency)").eq("user_id",user.id).eq("is_active",true);if(error){toast(error.message);return}orgs=(data||[]).map(x=>({...x.organizations,role:String(x.role||"").toLowerCase()})).filter(Boolean);$("orgSelect").innerHTML=orgs.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join("");orgId=preselect||orgs[0]?.id||null;if(orgId)$("orgSelect").value=orgId;const activeOrg=orgs.find(o=>o.id===orgId);const workerOnly=!!activeOrg&&["staff","employee","worker"].includes(activeOrg.role);document.body.classList.toggle("worker-mode",workerOnly);$("orgSetup").classList.toggle("hidden",!!orgId||workerOnly);if(workerOnly){currentPage="worker-ui";await loadPage("worker-ui");return}if(orgId)await loadPage(currentPage);else $("content").innerHTML=""}
+async function boot(){
+ const {data:{session}}=await sb.auth.getSession();
+ user=session?.user||null;
+ if(!user){
+  currentRole=null;orgs=[];orgId=null;
+  window.BizoraI18n?.mount("guest");
+  $("authView").classList.remove("hidden");$("appView").classList.add("hidden");
+  setAuthMode("owner-code");
+  return;
+ }
+ $("authView").classList.add("hidden");$("appView").classList.remove("hidden");
+ $("userEmail").textContent=user.email||"Utilisateur";
+ $("avatar").textContent=(user.email||"U")[0].toUpperCase();
+ window.BizoraI18n?.mount(user.id);
+ await loadOrganizations(sessionStorage.getItem("bizora_owner_org_id")||undefined);
+}
+async function accessRequest(body){
+ const {data,error}=await sb.functions.invoke("bizora-access",{body});
+ if(error||data?.error)throw new Error(data?.error||error?.message||"تعذر تنفيذ العملية.");
+ return data||{};
+}
+async function loadOrganizations(preselect){
+ const {data,error}=await sb.from("memberships")
+  .select("organization_id,role,is_active,organizations(id,name,currency)")
+  .eq("user_id",user.id);
+ if(error){toast(error.message);return;}
+ const memberships=(data||[]).filter(row=>row.organizations);
+ const activeMemberships=memberships.filter(row=>row.is_active);
+ if(!activeMemberships.length&&memberships.length){
+  await sb.auth.signOut();user=null;sessionStorage.clear();
+  $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
+  authMessage("هذا الحساب موقوف من طرف صاحب المحل. تواصل معه لإعادة تفعيله.");
+  return;
+ }
+ orgs=activeMemberships.map(row=>({...row.organizations,role:String(row.role||"").toLowerCase()}));
+ if(!orgs.length){
+  currentRole=null;orgId=null;document.body.classList.remove("worker-mode");
+  $("orgSetup").classList.remove("hidden");$("content").innerHTML="";
+  $("orgSelect").innerHTML="";
+  $("navUsers").classList.add("hidden");
+  return;
+ }
+ orgId=(preselect&&orgs.some(o=>o.id===preselect)?preselect:orgs[0].id);
+ $("orgSelect").innerHTML=orgs.map(o=>'<option value="'+o.id+'">'+esc(o.name)+'</option>').join("");
+ $("orgSelect").value=orgId;
+ const activeOrg=orgs.find(o=>o.id===orgId);
+ currentRole=activeOrg.role;
+ const workerOnly=["staff","cashier","employee","worker"].includes(currentRole);
+ document.body.classList.toggle("worker-mode",workerOnly);
+ $("orgSelect").closest(".orgbox")?.classList.toggle("hidden",workerOnly);
+ $("orgSetup").classList.add("hidden");
+ $("navUsers").classList.toggle("hidden",currentRole!=="owner");
+ if(currentRole==="owner"){
+  const unlocked=sessionStorage.getItem("bizora_owner_unlocked_"+orgId)==="1";
+  let status;
+  try{status=await accessRequest({action:"owner_code_status",organization_id:orgId});}
+  catch(error){
+   await sb.auth.signOut();user=null;sessionStorage.clear();
+   $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
+   setAuthMode("owner-code");authMessage("تعذر التحقق من حماية الإدارة. حاول الدخول بكود الإدارة من جديد.");
+   return;
+  }
+  if(status.has_code&&!unlocked){
+   await sb.auth.signOut();user=null;sessionStorage.clear();
+   $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
+   setAuthMode("owner-code");authMessage("أدخل كود الإدارة الخاص بالمحل لفتح لوحة التحكم.");
+   return;
+  }
+  if(!status.has_code){
+   try{
+    const created=await accessRequest({action:"rotate_owner_code",organization_id:orgId});
+    sessionStorage.setItem("bizora_owner_unlocked_"+orgId,"1");
+    showOwnerCodeModal(created.code);
+   }catch(error){toast("تعذر إنشاء كود الإدارة: "+error.message);}
+  }
+ }
+ if(workerOnly){
+  currentPage="worker-ui";
+  await loadPage("worker-ui");
+  return;
+ }
+ if(!["owner","manager"].includes(currentRole)){
+  await sb.auth.signOut();user=null;sessionStorage.clear();
+  $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
+  authMessage("هذا الحساب لا يملك صلاحية الدخول إلى واجهة التطبيق.");
+  return;
+ }
+ await loadPage(currentPage==="worker-ui"?"overview":currentPage);
+}
 function heading(title){$("pageTitle").textContent=title;document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===currentPage))}
-async function loadPage(page){if(!orgId)return;if(document.body.classList.contains("worker-mode")&&page!=="worker-ui")page="worker-ui";currentPage=page;document.querySelector(".topbar")?.classList.toggle("hidden",page==="overview"||page==="worker-ui");const names={overview:"لوحة القيادة",products:"المنتجات والمخزون",sales:"المبيعات",orders:"الطلبات",cameras:"الكاميرات",reports:"التقارير",settings:"الإعدادات"};heading(names[page]||"Vue générale");if(page==="overview")return overview();if(page==="products")return productPage();if(page==="sales")return salesPage();if(page==="orders")return ordersPage();if(page==="cameras")return camerasPage();if(page==="reports")return reportsPage();if(page==="settings")return settingsPage();if(page==="worker-ui")return workerOrderInterface()}
+async function loadPage(page){if(!orgId)return;if(document.body.classList.contains("worker-mode")&&page!=="worker-ui")page="worker-ui";if(page==="users"&&currentRole!=="owner")page="overview";currentPage=page;document.querySelector(".topbar")?.classList.toggle("hidden",page==="overview"||page==="worker-ui");const names={overview:"لوحة القيادة",products:"المنتجات والمخزون",sales:"المبيعات",orders:"الطلبات",users:"المستخدمون",cameras:"الكاميرات",reports:"التقارير",settings:"الإعدادات"};heading(names[page]||"Vue générale");if(page==="overview")return overview();if(page==="products")return productPage();if(page==="sales")return salesPage();if(page==="orders")return ordersPage();if(page==="users")return usersPage();if(page==="cameras")return camerasPage();if(page==="reports")return reportsPage();if(page==="settings")return settingsPage();if(page==="worker-ui")return workerOrderInterface()}
 async function overview(){
   const lang=window.BizoraI18n?.language||"ar";
   const tr=(ar,fr,en,es,de,zh)=>({ar,fr,en,es,de,"zh-CN":zh})[lang]||ar;
@@ -74,58 +213,153 @@ async function overview(){
 }
 
 let workerCart=[];
-function workerOrderInterface(){
+async function workerOrderInterface(){
+ if(workerRefreshTimer){clearInterval(workerRefreshTimer);workerRefreshTimer=null;}
  const lang=window.BizoraI18n?.language||"ar";
  const words={
- ar:{title:"واجهة العامل",sub:"اختار المأكولات أو المشروبات",food:"المأكولات",drink:"المشروبات",all:"الكل",search:"ابحث عن منتج…",cart:"الطلب الحالي",empty:"مازال ما ضفتي حتى منتج",qty:"الكمية",total:"المجموع",confirm:"تأكيد الطلب (تجريبي)",clear:"مسح الطلب",add:"إضافة",preview:"معاينة الواجهة فقط — الصور المختارة مؤقتة ولا تُحفظ.",table:"رقم الطاولة",choose:"اختر الطاولة",photo:"إضافة صورة",emptySlot:"مكان منتج",noPhoto:"صورة المنتج",currency:"درهم"},
- fr:{title:"Interface employé",sub:"Choisissez des plats ou des boissons",food:"Plats",drink:"Boissons",all:"Tout",search:"Rechercher un produit…",cart:"Commande en cours",empty:"Aucun article ajouté",qty:"Qté",total:"Total",confirm:"Valider (démo)",clear:"Vider",add:"Ajouter",preview:"Aperçu uniquement — les photos choisies sont temporaires.",table:"Table",choose:"Choisir une table",photo:"Ajouter une photo",emptySlot:"Emplacement produit",noPhoto:"Photo du produit",currency:"MAD"},
- en:{title:"Staff interface",sub:"Choose food or drinks",food:"Food",drink:"Drinks",all:"All",search:"Search products…",cart:"Current order",empty:"No items added yet",qty:"Qty",total:"Total",confirm:"Confirm order (demo)",clear:"Clear order",add:"Add",preview:"Preview only — selected photos are temporary.",table:"Table",choose:"Choose a table",photo:"Add photo",emptySlot:"Product slot",noPhoto:"Product photo",currency:"MAD"},
- es:{title:"Interfaz del empleado",sub:"Elige comida o bebidas",food:"Comida",drink:"Bebidas",all:"Todo",search:"Buscar producto…",cart:"Pedido actual",empty:"Aún no hay productos",qty:"Cant.",total:"Total",confirm:"Confirmar (demo)",clear:"Vaciar",add:"Añadir",preview:"Solo vista previa — las fotos elegidas son temporales.",table:"Mesa",choose:"Elegir mesa",photo:"Añadir foto",emptySlot:"Espacio de producto",noPhoto:"Foto del producto",currency:"MAD"},
- de:{title:"Mitarbeiteroberfläche",sub:"Speisen oder Getränke auswählen",food:"Speisen",drink:"Getränke",all:"Alle",search:"Produkt suchen…",cart:"Aktuelle Bestellung",empty:"Noch keine Artikel",qty:"Menge",total:"Gesamt",confirm:"Bestätigen (Demo)",clear:"Leeren",add:"Hinzufügen",preview:"Nur Vorschau — ausgewählte Fotos sind temporär.",table:"Tisch",choose:"Tisch auswählen",photo:"Foto hinzufügen",emptySlot:"Produktplatz",noPhoto:"Produktfoto",currency:"MAD"},
- "zh-CN":{title:"员工界面",sub:"选择食品或饮料",food:"食品",drink:"饮料",all:"全部",search:"搜索商品…",cart:"当前订单",empty:"尚未添加商品",qty:"数量",total:"总计",confirm:"确认（演示）",clear:"清空",add:"添加",preview:"仅供预览 — 所选照片为临时照片。",table:"桌号",choose:"选择桌号",photo:"添加照片",emptySlot:"商品位置",noPhoto:"商品照片",currency:"MAD"}
+  ar:{title:"واجهة العمل",sub:"اختار المنتجات وسجل الطلبات وتابع حالتها",food:"المأكولات",drink:"المشروبات",search:"ابحث عن منتج…",cart:"الطلب الحالي",empty:"مازال ما ضفتي حتى منتج",qty:"الكمية",total:"المجموع",confirm:"تأكيد الطلب",clear:"مسح الطلب",add:"إضافة",table:"رقم الطاولة",choose:"اختار الطاولة",orders:"تتبع الطلبات",refresh:"تحديث",noOrders:"لا توجد طلبات حالياً",logout:"خروج",productsEmpty:"ما كاين حتى منتج نشط. تواصل مع صاحب المحل.",orderDone:"تم تسجيل الطلب بنجاح",status:"الحالة",currency:"درهم"},
+  fr:{title:"Espace de travail",sub:"Ajoutez des articles, créez et suivez les commandes",food:"Plats",drink:"Boissons",search:"Rechercher un produit…",cart:"Commande actuelle",empty:"Aucun article ajouté",qty:"Qté",total:"Total",confirm:"Valider la commande",clear:"Vider",add:"Ajouter",table:"Table",choose:"Choisir une table",orders:"Suivi des commandes",refresh:"Actualiser",noOrders:"Aucune commande pour le moment",logout:"Déconnexion",productsEmpty:"Aucun produit actif. Contactez le propriétaire.",orderDone:"Commande enregistrée",status:"Statut",currency:"MAD"},
+  en:{title:"Work area",sub:"Add products, create orders and track their status",food:"Food",drink:"Drinks",search:"Search products…",cart:"Current order",empty:"No items added",qty:"Qty",total:"Total",confirm:"Place order",clear:"Clear",add:"Add",table:"Table",choose:"Choose a table",orders:"Order tracking",refresh:"Refresh",noOrders:"No orders yet",logout:"Sign out",productsEmpty:"No active products. Contact the owner.",orderDone:"Order saved successfully",status:"Status",currency:"MAD"},
+  es:{title:"Área de trabajo",sub:"Añade productos, crea pedidos y sigue su estado",food:"Comida",drink:"Bebidas",search:"Buscar producto…",cart:"Pedido actual",empty:"No hay artículos",qty:"Cant.",total:"Total",confirm:"Crear pedido",clear:"Vaciar",add:"Añadir",table:"Mesa",choose:"Elegir mesa",orders:"Seguimiento de pedidos",refresh:"Actualizar",noOrders:"Todavía no hay pedidos",logout:"Salir",productsEmpty:"No hay productos activos. Contacta con el propietario.",orderDone:"Pedido guardado",status:"Estado",currency:"MAD"},
+  de:{title:"Arbeitsbereich",sub:"Produkte hinzufügen, Bestellungen erstellen und verfolgen",food:"Speisen",drink:"Getränke",search:"Produkt suchen…",cart:"Aktuelle Bestellung",empty:"Keine Artikel hinzugefügt",qty:"Menge",total:"Gesamt",confirm:"Bestellung aufgeben",clear:"Leeren",add:"Hinzufügen",table:"Tisch",choose:"Tisch auswählen",orders:"Bestellverfolgung",refresh:"Aktualisieren",noOrders:"Noch keine Bestellungen",logout:"Abmelden",productsEmpty:"Keine aktiven Produkte. Bitte den Inhaber kontaktieren.",orderDone:"Bestellung gespeichert",status:"Status",currency:"MAD"},
+  "zh-CN":{title:"工作界面",sub:"添加商品、创建订单并跟踪状态",food:"食品",drink:"饮料",search:"搜索商品…",cart:"当前订单",empty:"尚未添加商品",qty:"数量",total:"总计",confirm:"提交订单",clear:"清空",add:"添加",table:"桌号",choose:"选择桌号",orders:"订单跟踪",refresh:"刷新",noOrders:"暂无订单",logout:"退出",productsEmpty:"没有启用的商品，请联系店主。",orderDone:"订单已成功保存",status:"状态",currency:"MAD"}
  };
  const t=words[lang]||words.ar;
- const names=[
-  {id:1,name:{ar:"بيتزا مارغريتا",fr:"Pizza Margherita",en:"Margherita pizza",es:"Pizza margarita",de:"Pizza Margherita","zh-CN":"玛格丽特披萨"}[lang]||"بيتزا مارغريتا",type:"food",price:55},
-  {id:2,name:{ar:"برغر دجاج",fr:"Burger au poulet",en:"Chicken burger",es:"Hamburguesa de pollo",de:"Hähnchenburger","zh-CN":"鸡肉汉堡"}[lang]||"برغر دجاج",type:"food",price:42},
-  {id:3,name:{ar:"سلطة خضراء",fr:"Salade verte",en:"Green salad",es:"Ensalada verde",de:"Grüner Salat","zh-CN":"蔬菜沙拉"}[lang]||"سلطة خضراء",type:"food",price:28},
-  {id:4,name:{ar:"عصير برتقال",fr:"Jus d’orange",en:"Orange juice",es:"Zumo de naranja",de:"Orangensaft","zh-CN":"橙汁"}[lang]||"عصير برتقال",type:"drink",price:18},
-  {id:5,name:{ar:"قهوة",fr:"Café",en:"Coffee",es:"Café",de:"Kaffee","zh-CN":"咖啡"}[lang]||"قهوة",type:"drink",price:12},
-  {id:6,name:{ar:"ماء معدني",fr:"Eau minérale",en:"Mineral water",es:"Agua mineral",de:"Mineralwasser","zh-CN":"矿泉水"}[lang]||"ماء معدني",type:"drink",price:8}
- ];
+ const statusValues=["pending","preparing","ready","served","completed","cancelled"];
+ const statusLabels={
+  pending:{ar:"جديد",fr:"Nouvelle",en:"New",es:"Nuevo",de:"Neu","zh-CN":"新订单"},
+  preparing:{ar:"قيد التحضير",fr:"En préparation",en:"Preparing",es:"Preparando",de:"In Zubereitung","zh-CN":"准备中"},
+  ready:{ar:"جاهز",fr:"Prête",en:"Ready",es:"Listo",de:"Bereit","zh-CN":"已准备好"},
+  served:{ar:"تم التقديم",fr:"Servie",en:"Served",es:"Servido",de:"Serviert","zh-CN":"已上菜"},
+  completed:{ar:"مكتمل",fr:"Terminée",en:"Completed",es:"Completado",de:"Abgeschlossen","zh-CN":"已完成"},
+  cancelled:{ar:"ملغي",fr:"Annulée",en:"Cancelled",es:"Cancelado",de:"Storniert","zh-CN":"已取消"}
+ };
+ const [productResult,ordersResult]=await Promise.all([
+  sb.from("products").select("id,name,unit_price,item_type,category").eq("organization_id",orgId).eq("is_active",true).order("name"),
+  sb.from("orders").select("id,status,table_label,total,created_at,order_items(product_name,quantity)").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(25)
+ ]);
+ if(productResult.error){$("content").innerHTML='<div class="panel notice">'+esc(productResult.error.message)+'</div>';return;}
+ const menu=(productResult.data||[]).filter(p=>p.item_type==="food"||p.item_type==="drink");
  let filter="food";
- const imageMap={};
- const moneyUI=n=>money(n);
- $("content").innerHTML='<div class="worker-screen"><div class="worker-head"><div><span class="worker-kicker">'+esc(t.sub)+'</span><h2>'+esc(t.title)+'</h2></div><span class="worker-preview-badge">4 × 4</span></div><div class="worker-layout"><section class="worker-menu"><div class="worker-toolbar"><div class="worker-tabs"><button class="active" data-filter="food">🍽 '+esc(t.food)+'</button><button data-filter="drink">🥤 '+esc(t.drink)+'</button></div><input id="workerSearch" type="search" placeholder="'+esc(t.search)+'"></div><div id="workerProducts" class="worker-products"></div></section><aside class="worker-order"><div class="worker-order-head"><div><h3>'+esc(t.cart)+'</h3><small><span id="workerCount">0</span> '+esc(t.qty)+'</small></div><button id="workerClear" class="ghost">'+esc(t.clear)+'</button></div><label class="worker-table-label">'+esc(t.table)+'<select id="workerTable"><option value="">'+esc(t.choose)+'</option>'+Array.from({length:12},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+'</option>').join("")+'</select></label><div id="workerCart" class="worker-cart"></div><div class="worker-total"><span>'+esc(t.total)+'</span><strong id="workerTotal">'+moneyUI(0)+'</strong></div><button id="workerSend" class="primary worker-submit">'+esc(t.confirm)+'</button><p class="worker-demo-note">'+esc(t.preview)+'</p></aside></div></div>';
  workerCart=[];
- const render=()=>{
+ const statusText=value=>statusLabels[value]?.[lang]||statusLabels[value]?.ar||value;
+ $("content").innerHTML=
+  '<div class="worker-screen">'+
+   '<div class="worker-head"><div><span class="worker-kicker">'+esc(t.sub)+'</span><h2>'+esc(t.title)+'</h2></div><div class="worker-head-actions"><span class="worker-preview-badge">4 × 4</span><button id="workerLogout" class="worker-logout">'+esc(t.logout)+'</button></div></div>'+
+   '<div class="worker-layout"><section class="worker-menu"><div class="worker-toolbar"><div class="worker-tabs"><button class="active" data-filter="food">🍽 '+esc(t.food)+'</button><button data-filter="drink">🥤 '+esc(t.drink)+'</button></div><input id="workerSearch" type="search" placeholder="'+esc(t.search)+'"></div><div id="workerProducts" class="worker-products"></div></section>'+
+   '<aside class="worker-order"><div class="worker-order-head"><div><h3>'+esc(t.cart)+'</h3><small><span id="workerCount">0</span> '+esc(t.qty)+'</small></div><button id="workerClear" class="ghost">'+esc(t.clear)+'</button></div>'+
+   '<label class="worker-table-label">'+esc(t.table)+'<select id="workerTable" required><option value="">'+esc(t.choose)+'</option>'+Array.from({length:12},(_,i)=>'<option value="Table '+(i+1)+'">'+(i+1)+'</option>').join("")+'</select></label>'+
+   '<div id="workerCart" class="worker-cart"></div><div class="worker-total"><span>'+esc(t.total)+'</span><strong id="workerTotal">'+money(0)+'</strong></div><button id="workerSend" class="primary worker-submit">'+esc(t.confirm)+'</button></aside></div>'+
+   '<section class="panel worker-orders-panel"><div class="worker-orders-head"><div><h3>'+esc(t.orders)+'</h3><small class="muted">آخر 25 طلباً داخل المحل</small></div><button id="workerRefreshOrders" class="secondary">'+esc(t.refresh)+'</button></div><div id="workerOrders" class="worker-order-list"></div></section>'+
+  '</div>';
+ $("workerLogout").onclick=async()=>{sessionStorage.clear();await sb.auth.signOut();location.reload();};
+ const renderProducts=()=>{
   const query=($("workerSearch").value||"").toLocaleLowerCase();
-  const shown=names.filter(p=>p.type===filter&&p.name.toLocaleLowerCase().includes(query));
+  const shown=menu.filter(p=>p.item_type===filter&&String(p.name||"").toLocaleLowerCase().includes(query)).slice(0,16);
   const slots=Array.from({length:16},(_,i)=>shown[i]||null);
   $("workerProducts").innerHTML=slots.map((p,i)=>{
-   const key=p?String(p.id):"empty-"+filter+"-"+i;
-   const photo=imageMap[key];
-   return '<article class="worker-product-tile '+(p?"has-product":"is-empty")+'"><label class="worker-photo-pick" for="worker-photo-'+key+'">'+(photo?'<img src="'+photo+'" alt="'+esc(p?.name||t.noPhoto)+'">':'<span class="worker-photo-placeholder">＋<small>'+esc(t.photo)+'</small></span>')+'</label><input class="worker-photo-input" id="worker-photo-'+key+'" type="file" accept="image/*" data-photo="'+key+'"><div class="worker-product-info">'+(p?'<b>'+esc(p.name)+'</b><strong>'+moneyUI(p.price)+'</strong>':'<b>'+esc(t.emptySlot)+'</b><small>'+esc(t.noPhoto)+'</small><strong>— '+esc(t.currency)+'</strong>')+'</div>'+(p?'<button class="worker-add" data-add="'+p.id+'" aria-label="'+esc(t.add)+' '+esc(p.name)+'">+</button>':'')+'</article>';
+   if(!p)return '<article class="worker-product-tile is-empty"><div class="worker-product-art">＋</div><div class="worker-product-info"><b>'+esc(t.food===filter?t.food:t.drink)+'</b><small>—</small></div></article>';
+   const icon=p.item_type==="drink"?"🥤":"🍽️";
+   return '<article class="worker-product-tile has-product"><div class="worker-product-art" aria-hidden="true">'+icon+'</div><div class="worker-product-info"><b>'+esc(p.name)+'</b><small>'+esc(p.category||"")+'</small><strong>'+money(p.unit_price)+'</strong></div><button class="worker-add" data-add="'+p.id+'" aria-label="'+esc(t.add)+' '+esc(p.name)+'">+</button></article>';
   }).join("");
-  $("workerCart").innerHTML=workerCart.length?workerCart.map(x=>'<div class="worker-cart-row"><span>'+esc(x.name)+'</span><div class="worker-qty"><button data-dec="'+x.id+'">−</button><b>'+x.qty+'</b><button data-inc="'+x.id+'">+</button></div><strong>'+moneyUI(x.qty*x.price)+'</strong></div>').join(""):'<div class="worker-empty">'+esc(t.empty)+'</div>';
-  $("workerTotal").textContent=moneyUI(workerCart.reduce((sum,x)=>sum+x.qty*x.price,0));
-  $("workerCount").textContent=workerCart.reduce((sum,x)=>sum+x.qty,0);
-  $("workerProducts").querySelectorAll("[data-photo]").forEach(input=>input.onchange=()=>{
-   const file=input.files?.[0];if(!file)return;
-   if(!file.type.startsWith("image/")||file.size>4*1024*1024){toast(lang==="ar"?"اختار صورة أقل من 4 ميغابايت.":"Choose an image smaller than 4 MB.");input.value="";return}
-   const reader=new FileReader();reader.onload=()=>{imageMap[input.dataset.photo]=reader.result;render()};reader.readAsDataURL(file);
+  $("workerProducts").querySelectorAll("[data-add]").forEach(button=>button.onclick=()=>{
+   const p=menu.find(item=>item.id===button.dataset.add);if(!p)return;
+   const old=workerCart.find(item=>item.id===p.id);
+   if(old)old.qty++;else workerCart.push({id:p.id,name:p.name,price:Number(p.unit_price),qty:1});
+   renderCart();
   });
-  $("workerProducts").querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const p=names.find(x=>x.id===Number(b.dataset.add));const old=workerCart.find(x=>x.id===p.id);old?old.qty++:workerCart.push({...p,qty:1});render()});
-  $("workerCart").querySelectorAll("[data-inc]").forEach(b=>b.onclick=()=>{const x=workerCart.find(x=>x.id===Number(b.dataset.inc));if(x)x.qty++;render()});
-  $("workerCart").querySelectorAll("[data-dec]").forEach(b=>b.onclick=()=>{const x=workerCart.find(x=>x.id===Number(b.dataset.dec));if(x){x.qty--;if(x.qty<=0)workerCart=workerCart.filter(y=>y.id!==x.id)}render()});
  };
- $("workerSearch").oninput=render;
- document.querySelectorAll("[data-filter]").forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));render()});
- $("workerClear").onclick=()=>{workerCart=[];render()};
- $("workerSend").onclick=()=>toast(t.preview);
- render();
+ const renderCart=()=>{
+  $("workerCart").innerHTML=workerCart.length?workerCart.map(item=>
+   '<div class="worker-cart-row"><span>'+esc(item.name)+'</span><div class="worker-qty"><button data-dec="'+item.id+'">−</button><b>'+item.qty+'</b><button data-inc="'+item.id+'">+</button></div><strong>'+money(item.qty*item.price)+'</strong></div>'
+  ).join(""):'<div class="worker-empty">'+esc(t.empty)+'</div>';
+  $("workerTotal").textContent=money(workerCart.reduce((sum,item)=>sum+item.qty*item.price,0));
+  $("workerCount").textContent=workerCart.reduce((sum,item)=>sum+item.qty,0);
+  $("workerCart").querySelectorAll("[data-inc]").forEach(button=>button.onclick=()=>{const item=workerCart.find(x=>x.id===button.dataset.inc);if(item)item.qty++;renderCart();});
+  $("workerCart").querySelectorAll("[data-dec]").forEach(button=>button.onclick=()=>{const item=workerCart.find(x=>x.id===button.dataset.dec);if(item){item.qty--;if(item.qty<=0)workerCart=workerCart.filter(x=>x.id!==item.id);}renderCart();});
+ };
+ const refreshOrders=async()=>{
+  const {data,error}=await sb.from("orders").select("id,status,table_label,total,created_at,order_items(product_name,quantity)").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(25);
+  if(error){$("workerOrders").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
+  const rows=data||[];
+  $("workerOrders").innerHTML=rows.length?rows.map(order=>
+   '<article class="worker-order-card"><div class="worker-order-card-head"><b>#'+order.id.slice(0,8).toUpperCase()+'</b><span class="worker-status">'+esc(statusText(order.status))+'</span></div>'+
+   '<small class="muted">'+esc(order.table_label||"—")+' • '+new Date(order.created_at).toLocaleTimeString(window.BizoraI18n?.locale||"ar-MA",{hour:"2-digit",minute:"2-digit"})+'</small>'+
+   '<ul>'+(order.order_items||[]).map(item=>'<li>'+esc(item.product_name)+' × '+Number(item.quantity)+'</li>').join("")+'</ul>'+
+   '<b>'+money(order.total)+'</b><label class="worker-table-label">'+esc(t.status)+'<select data-order-status="'+order.id+'">'+statusValues.map(value=>'<option value="'+value+'" '+(order.status===value?"selected":"")+'>'+esc(statusText(value))+'</option>').join("")+'</select></label></article>'
+  ).join(""):'<div class="empty">'+esc(t.noOrders)+'</div>';
+  $("workerOrders").querySelectorAll("[data-order-status]").forEach(select=>select.onchange=async()=>{
+   const id=select.dataset.orderStatus,status=select.value;select.disabled=true;
+   const {error:updateError}=await sb.from("orders").update({status,updated_at:new Date().toISOString()}).eq("id",id).eq("organization_id",orgId);
+   if(updateError){toast(updateError.message);}else{toast("تم تحديث حالة الطلب");}
+   await refreshOrders();
+  });
+ };
+ $("workerSearch").oninput=renderProducts;
+ document.querySelectorAll("[data-filter]").forEach(button=>button.onclick=()=>{
+  filter=button.dataset.filter;
+  document.querySelectorAll("[data-filter]").forEach(item=>item.classList.toggle("active",item===button));
+  renderProducts();
+ });
+ $("workerClear").onclick=()=>{workerCart=[];renderCart();};
+ $("workerRefreshOrders").onclick=refreshOrders;
+ $("workerSend").onclick=async()=>{
+  if(!workerCart.length){toast(t.empty);return;}
+  const table=$("workerTable").value;
+  if(!table){toast(t.choose);$("workerTable").focus();return;}
+  const button=$("workerSend");button.disabled=true;button.textContent="…";
+  const {data,error}=await sb.rpc("bizora_create_order",{
+   p_org:orgId,p_customer:null,p_table:table,p_note:null,
+   p_items:workerCart.map(item=>({product_id:item.id,quantity:item.qty}))
+  });
+  button.disabled=false;button.textContent=t.confirm;
+  if(error){toast(error.message);return;}
+  workerCart=[];renderCart();$("workerTable").value="";
+  toast(t.orderDone);await refreshOrders();
+ };
+ renderProducts();renderCart();
+ $("workerOrders").innerHTML='<div class="empty">'+esc(t.noOrders)+'</div>';
+ await refreshOrders();
+ workerRefreshTimer=setInterval(()=>{if(document.body.classList.contains("worker-mode")&&currentPage==="worker-ui")refreshOrders();},20000);
 }
-
+async function usersPage(){
+ if(currentRole!=="owner"){toast("هذه الصفحة مخصصة لصاحب المحل");return;}
+ $("content").innerHTML='<div class="panel"><p class="muted">جاري تحميل حسابات المحل…</p></div>';
+ let status,team;
+ try{
+  const results=await Promise.all([
+   accessRequest({action:"owner_code_status",organization_id:orgId}),
+   accessRequest({action:"list_workers",organization_id:orgId})
+  ]);
+  status=results[0];team=results[1].workers||[];
+ }catch(error){$("content").innerHTML='<div class="panel notice">'+esc(error.message)+'</div>';return;}
+ $("content").innerHTML=
+  '<section class="panel"><div class="section-head"><div><h3>كود الإدارة</h3><span class="muted">الكود السري الذي يفتح واجهة صاحب المحل مباشرة.</span></div><span class="badge">'+(status.has_code?"مفعّل":"غير مفعّل")+'</span></div><p class="muted">الكود لا يُعرض إلا عند إنشائه أو تغييره. احتفظ به ولا تشاركه مع العمال.</p><button id="rotateOwnerCode" class="primary">'+(status.has_code?"إعادة إصدار كود الإدارة":"إنشاء كود الإدارة")+'</button></section>'+
+  '<div class="team-grid"><section class="panel"><h3>إضافة مستخدم جديد</h3><p class="muted">أنشئ حساباً مستقلاً للعامل. سيدخل بالبريد الإلكتروني وكلمة المرور إلى واجهة العمل فقط.</p>'+
+  '<form id="teamForm" class="team-form"><label>الاسم الكامل<input name="name" required minlength="2" maxlength="100" placeholder="اسم العامل"></label><label>البريد الإلكتروني<input name="email" type="email" required placeholder="worker@example.com"></label><label>نوع الحساب<select name="role"><option value="staff">عامل</option><option value="cashier">أمين الصندوق</option></select></label><label>كلمة مرور مؤقتة<input name="password" type="password" minlength="10" required autocomplete="new-password" placeholder="10 أحرف على الأقل"></label><button class="primary" id="createWorkerBtn">إنشاء الحساب</button></form></section>'+
+  '<section class="panel"><div class="section-head"><div><h3>حسابات العمال</h3><span class="muted">'+team.length+' حساب</span></div></div><div id="teamList">'+(team.length?team.map(worker=>
+   '<div class="team-member"><div><b>'+esc(worker.name||worker.email||"مستخدم")+'</b><small>'+esc(worker.email)+' • '+(worker.role==="cashier"?"أمين الصندوق":"عامل")+' • '+(worker.is_active?"نشط":"موقوف")+'</small></div>'+(worker.is_active?'<button class="secondary" data-deactivate="'+worker.user_id+'">إيقاف الحساب</button>':'<span class="badge">موقوف</span>')+'</div>'
+  ).join(""):'<div class="empty">لم تتم إضافة أي عامل بعد.</div>')+'</div></section></div>';
+ $("rotateOwnerCode").onclick=async()=>{
+  if(!confirm("إصدار كود جديد سيوقف الكود القديم فوراً. هل تريد المتابعة؟"))return;
+  try{const result=await accessRequest({action:"rotate_owner_code",organization_id:orgId});showOwnerCodeModal(result.code);}
+  catch(error){toast(error.message);}
+ };
+ $("teamForm").onsubmit=async event=>{
+  event.preventDefault();const form=new FormData(event.target);
+  const button=$("createWorkerBtn");button.disabled=true;button.textContent="جاري إنشاء الحساب…";
+  try{
+   await accessRequest({action:"create_worker",organization_id:orgId,name:String(form.get("name")||"").trim(),email:String(form.get("email")||"").trim(),role:String(form.get("role")||"staff"),password:String(form.get("password")||"")});
+   toast("تم إنشاء حساب العامل. أعطه البريد وكلمة المرور التي أدخلتها.");
+   await usersPage();
+  }catch(error){toast(error.message);button.disabled=false;button.textContent="إنشاء الحساب";}
+ };
+ document.querySelectorAll("[data-deactivate]").forEach(button=>button.onclick=async()=>{
+  if(!confirm("هل تريد إيقاف هذا الحساب؟ لن يتمكن العامل من الدخول بعد ذلك."))return;
+  try{await accessRequest({action:"deactivate_worker",organization_id:orgId,user_id:button.dataset.deactivate});toast("تم إيقاف الحساب");await usersPage();}
+  catch(error){toast(error.message);}
+ });
+}
 async function productPage(showArchived=false){
   const {data,error}=await sb.from("products").select("*").eq("organization_id",orgId).eq("is_active",!showArchived).order("name");
   if(error){toast(error.message);return}
