@@ -43,7 +43,7 @@ $("authForm").onsubmit=async e=>{
  authMessage("جاري التحقق…");
  try{
   if(mode==="owner-code"){
-   const code=$("ownerCode").value.replace(/\\s/g,"");
+      const code=$("ownerCode").value.trim();
    const result=await sb.functions.invoke("bizora-access",{body:{action:"owner_code_login",code}});
    if(result.error||!result.data?.token_hash){authMessage(result.data?.error||result.error?.message||"تعذر التحقق من كود الإدارة.");return;}
    const verified=await sb.auth.verifyOtp({token_hash:result.data.token_hash,type:"email"});
