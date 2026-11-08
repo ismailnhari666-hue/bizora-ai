@@ -177,3 +177,50 @@ body.worker-mode .app{display:block!important;min-height:100vh}
 body.worker-mode .main{width:100%;max-width:none;margin:0;padding:clamp(10px,2vw,24px)}
 body.worker-mode .worker-screen{max-width:1180px;margin:0 auto}
 body.worker-mode .worker-head{margin-top:8px}
+
+/* Owner/worker access experience */
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.auth-tabs .tab{font-size:12px;padding:10px 7px;line-height:1.5}
+#ownerCodeField{display:block}
+#ownerCodeField input{direction:ltr;text-align:center;letter-spacing:.28em;font-size:22px;font-weight:800}
+.owner-code-modal{position:fixed;inset:0;z-index:10000;background:rgba(7,14,30,.72);display:grid;place-items:center;padding:18px}
+.owner-code-modal.hidden{display:none!important}
+.owner-code-card{width:min(100%,440px);background:var(--card,#fff);color:var(--text,#182033);border:1px solid var(--line,#dce3ee);border-radius:24px;padding:26px;box-shadow:0 24px 80px rgba(0,0,0,.28);text-align:center}
+.owner-code-card h2{margin:10px 0}
+.owner-code-card p,.owner-code-card small{color:var(--muted);line-height:1.8}
+.owner-code-card>strong{display:block;margin:22px 0;padding:18px 8px;border:1px dashed var(--green);border-radius:14px;font-size:30px;letter-spacing:.22em;color:var(--green);background:var(--panel2)}
+.owner-code-actions{display:flex;gap:9px;margin:14px 0}
+.owner-code-actions button{flex:1}
+.worker-head{align-items:flex-start}
+.worker-head-actions{display:flex;align-items:center;gap:8px}
+.worker-logout{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:11px;padding:9px 12px;font-weight:700}
+.worker-products{grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.worker-product-tile{position:relative;min-width:0;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:7px;display:flex;flex-direction:column;gap:6px}
+.worker-product-art{aspect-ratio:1/1;width:100%;border-radius:10px;background:var(--panel2);display:grid;place-items:center;font-size:clamp(20px,4vw,34px)}
+.worker-product-tile .worker-product-info{gap:3px}
+.worker-product-tile .worker-product-info b{font-size:clamp(10px,1.2vw,13px);line-height:1.35;overflow-wrap:anywhere}
+.worker-product-tile .worker-product-info strong{font-size:clamp(10px,1.2vw,13px)}
+.worker-product-tile .worker-add{width:100%;height:30px;margin:0;border-radius:9px;font-size:19px}
+.worker-orders-panel{margin-top:18px}
+.worker-orders-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.worker-order-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.worker-order-card{border:1px solid var(--line);border-radius:14px;padding:13px;background:var(--surface);min-width:0}
+.worker-order-card-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.worker-order-card ul{margin:10px 0;padding-inline-start:20px;font-size:12px;line-height:1.8}
+.worker-order-card select{width:100%;margin-top:10px;padding:9px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);color:var(--text)}
+.worker-status{font-size:11px;padding:5px 8px;border-radius:20px;background:var(--panel2);font-weight:700}
+.team-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.team-member{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+.team-member:last-child{border-bottom:0}
+.team-member small{display:block;color:var(--muted);margin-top:4px}
+.team-member button{white-space:nowrap}
+.team-form{display:grid;gap:12px}
+.team-form label{display:grid;gap:6px;font-size:12px}
+.team-form input,.team-form select{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text)}
+@media(max-width:700px){
+  .worker-layout{grid-template-columns:1fr}
+  .worker-order{position:static}
+  .worker-order-list{grid-template-columns:1fr}
+  .team-grid{grid-template-columns:1fr}
+  .auth-tabs .tab{font-size:10px;padding:9px 4px}
+}
