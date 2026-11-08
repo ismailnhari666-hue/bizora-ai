@@ -145,7 +145,7 @@ async function loadOrganizations(preselect){
     sessionStorage.setItem("bizora_owner_unlocked_"+orgId,"1");
     sessionStorage.removeItem("bizora_owner_recovery");
     showOwnerCodeModal(created.code);
-   }catch(error){toast("تعذر إنشاء كود الإدارة: "+error.message);}
+   }catch(error){await sb.auth.signOut();user=null;sessionStorage.clear();$("appView").classList.add("hidden");$("authView").classList.remove("hidden");setAuthMode("owner-code");authMessage("تعذر إنشاء كود الإدارة بشكل آمن. حاول الدخول مرة أخرى.");return;}
   }
  }
  if(currentRole!=="owner")sessionStorage.removeItem("bizora_owner_recovery");
