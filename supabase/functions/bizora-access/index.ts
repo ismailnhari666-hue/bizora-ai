@@ -124,7 +124,7 @@ async function authenticatedAction(req: Request, body: Record<string, unknown>) 
   if (action === "list_workers") {
     const { data: memberships, error } = await admin.from("memberships")
       .select("id,user_id,role,is_active,created_at")
-      .eq("organization_id", organizationId).in("role", ["staff", "cashier"])
+      .eq("organization_id", organizationId)
       .order("created_at", { ascending: false });
     if (error) return response({ error: "Could not load team accounts." }, 500);
     const { data: userPage, error: usersError } =
@@ -185,7 +185,7 @@ async function authenticatedAction(req: Request, body: Record<string, unknown>) 
     if (!workerId) return response({ error: "Worker account is required." }, 400);
     const { data, error } = await admin.from("memberships").update({ is_active: false })
       .eq("organization_id", organizationId).eq("user_id", workerId)
-      .in("role", ["staff", "cashier"]).select("id").maybeSingle();
+      .in("role", ["staff", "cashier", "manager"]).select("id").maybeSingle();
     if (error) return response({ error: "Could not deactivate the worker." }, 500);
     if (!data) return response({ error: "Worker account was not found." }, 404);
     return response({ ok: true });
