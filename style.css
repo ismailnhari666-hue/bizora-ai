@@ -224,3 +224,5 @@ body.worker-mode .worker-head{margin-top:8px}
   .team-grid{grid-template-columns:1fr}
   .auth-tabs .tab{font-size:10px;padding:9px 4px}
 }
+
+#ownerRecoveryToggle{margin-top:10px;font-size:12px;color:var(--muted)}
