@@ -1,7 +1,16 @@
 // BIZORA AI — Supabase-connected starter. Publishable key is intended for browser use with RLS.
 const SUPABASE_URL = "https://pywdltkplgvbxdejqext.supabase.co";
 const SUPABASE_KEY = "sb_publishable_8IJRRATLzn3H4CLz1jXw3Q_LuIgS3pw";
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage }
+});
+const ownerUnlockKey = (organizationId, userId) => "bizora_owner_unlocked_"+userId+"_"+organizationId;
+const ownerOrgKey = userId => "bizora_owner_org_id_"+userId;
+const ownerRecoveryKey = userId => "bizora_owner_recovery_"+userId;
+function clearBizoraAuthState(){
+  for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(key&&key.startsWith("bizora_owner_"))localStorage.removeItem(key);}
+  for(let i=sessionStorage.length-1;i>=0;i--){const key=sessionStorage.key(i);if(key&&key.startsWith("bizora_owner_"))sessionStorage.removeItem(key);}
+}
 const $ = id => document.getElementById(id);
 let mode="owner-code", user=null, orgs=[], orgId=null, products=[], currentPage="overview", currentRole=null, workerRefreshTimer=null;
 const money=n=>new Intl.NumberFormat(window.BizoraI18n?.locale||"fr-MA",{style:"currency",currency:"MAD"}).format(Number(n||0));
@@ -48,8 +57,8 @@ $("authForm").onsubmit=async e=>{
    if(result.error||!result.data?.token_hash){authMessage(result.data?.error||result.error?.message||"تعذر التحقق من كود الإدارة.");return;}
    const verified=await sb.auth.verifyOtp({token_hash:result.data.token_hash,type:"magiclink"});
    if(verified.error){authMessage(verified.error.message);return;}
-   sessionStorage.setItem("bizora_owner_unlocked_"+result.data.organization_id,"1");
-   sessionStorage.setItem("bizora_owner_org_id",result.data.organization_id);
+   localStorage.setItem(ownerUnlockKey(result.data.organization_id,verified.data.user.id),"1");
+   localStorage.setItem(ownerOrgKey(verified.data.user.id),result.data.organization_id);
    $("ownerCode").value="";
    await boot();
    return;
@@ -60,12 +69,12 @@ $("authForm").onsubmit=async e=>{
    :await sb.auth.signInWithPassword({email,password});
   if(result.error){authMessage(result.error.message);return;}
   if(mode==="signup"&&!result.data.session){authMessage("تم إنشاء الحساب. تحقق من بريدك الإلكتروني لتأكيد التسجيل، ثم ادخل بحسابك.");return;}
-  if(mode==="owner-recovery")sessionStorage.setItem("bizora_owner_recovery","1");
+  if(mode==="owner-recovery")localStorage.setItem(ownerRecoveryKey(result.data.user.id),"1");
   await boot();
  }catch(error){authMessage(error?.message||"وقع خطأ غير متوقع أثناء تسجيل الدخول.");}
  finally{$("authSubmit").disabled=false;}
 };
-$("logout").onclick=async()=>{sessionStorage.clear();await sb.auth.signOut();location.reload()};
+$("logout").onclick=async()=>{clearBizoraAuthState();await sb.auth.signOut();location.reload()};
 $("refresh").onclick=()=>loadPage(currentPage);
 $("orgForm").onsubmit=async e=>{e.preventDefault();$("orgMsg").textContent="Création…";const {data,error}=await sb.rpc("bizora_create_organization",{p_name:$("orgName").value.trim()});if(error){$("orgMsg").textContent=error.message;return}toast("تم إنشاء المحل");await loadOrganizations(data)};
 $("orgSelect").onchange=async e=>{await loadOrganizations(e.target.value)};
@@ -84,7 +93,7 @@ async function boot(){
  $("userEmail").textContent=user.email||"Utilisateur";
  $("avatar").textContent=(user.email||"U")[0].toUpperCase();
  window.BizoraI18n?.mount(user.id);
- await loadOrganizations(sessionStorage.getItem("bizora_owner_org_id")||undefined);
+ await loadOrganizations(localStorage.getItem(ownerOrgKey(user.id))||undefined);
 }
 async function accessRequest(body){
  const {data,error}=await sb.functions.invoke("bizora-access",{body});
@@ -99,7 +108,7 @@ async function loadOrganizations(preselect){
  const memberships=(data||[]).filter(row=>row.organizations);
  const activeMemberships=memberships.filter(row=>row.is_active);
  if(!activeMemberships.length&&memberships.length){
-  await sb.auth.signOut();user=null;sessionStorage.clear();
+  await sb.auth.signOut();user=null;clearBizoraAuthState();
   $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
   authMessage("هذا الحساب موقوف من طرف صاحب المحل. تواصل معه لإعادة تفعيله.");
   return;
@@ -123,18 +132,18 @@ async function loadOrganizations(preselect){
  $("orgSetup").classList.add("hidden");
  $("navUsers").classList.toggle("hidden",currentRole!=="owner");
  if(currentRole==="owner"){
-  const unlocked=sessionStorage.getItem("bizora_owner_unlocked_"+orgId)==="1";
-  const recovering=sessionStorage.getItem("bizora_owner_recovery")==="1";
+  const unlocked=localStorage.getItem(ownerUnlockKey(orgId,user.id))==="1";
+  const recovering=localStorage.getItem(ownerRecoveryKey(user.id))==="1";
   let status;
   try{status=await accessRequest({action:"owner_code_status",organization_id:orgId});}
   catch(error){
-   await sb.auth.signOut();user=null;sessionStorage.clear();
+   await sb.auth.signOut();user=null;clearBizoraAuthState();
    $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
    setAuthMode("owner-code");authMessage("تعذر التحقق من حماية الإدارة. حاول الدخول بكود الإدارة من جديد.");
    return;
   }
   if(status.has_code&&!unlocked&&!recovering){
-   await sb.auth.signOut();user=null;sessionStorage.clear();
+   await sb.auth.signOut();user=null;clearBizoraAuthState();
    $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
    setAuthMode("owner-code");authMessage("أدخل كود الإدارة الخاص بالمحل لفتح لوحة التحكم.");
    return;
@@ -142,20 +151,20 @@ async function loadOrganizations(preselect){
   if(!status.has_code||recovering){
    try{
     const created=await accessRequest({action:"rotate_owner_code",organization_id:orgId});
-    sessionStorage.setItem("bizora_owner_unlocked_"+orgId,"1");
-    sessionStorage.removeItem("bizora_owner_recovery");
+    localStorage.setItem(ownerUnlockKey(orgId,user.id),"1");
+    localStorage.removeItem(ownerRecoveryKey(user.id));
     showOwnerCodeModal(created.code);
-   }catch(error){await sb.auth.signOut();user=null;sessionStorage.clear();$("appView").classList.add("hidden");$("authView").classList.remove("hidden");setAuthMode("owner-code");authMessage("تعذر إنشاء كود الإدارة بشكل آمن. حاول الدخول مرة أخرى.");return;}
+   }catch(error){await sb.auth.signOut();user=null;clearBizoraAuthState();$("appView").classList.add("hidden");$("authView").classList.remove("hidden");setAuthMode("owner-code");authMessage("تعذر إنشاء كود الإدارة بشكل آمن. حاول الدخول مرة أخرى.");return;}
   }
  }
- if(currentRole!=="owner")sessionStorage.removeItem("bizora_owner_recovery");
+ if(currentRole!=="owner")localStorage.removeItem(ownerRecoveryKey(user.id));
  if(workerOnly){
   currentPage="worker-ui";
   await loadPage("worker-ui");
   return;
  }
  if(currentRole!=="owner"){
-  await sb.auth.signOut();user=null;sessionStorage.clear();
+  await sb.auth.signOut();user=null;clearBizoraAuthState();
   $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
   authMessage("هذا الحساب لا يملك صلاحية الدخول إلى واجهة التطبيق.");
   return;
@@ -258,7 +267,7 @@ async function workerOrderInterface(){
    '<div id="workerCart" class="worker-cart"></div><div class="worker-total"><span>'+esc(t.total)+'</span><strong id="workerTotal">'+money(0)+'</strong></div><button id="workerSend" class="primary worker-submit">'+esc(t.confirm)+'</button></aside></div>'+
    '<section class="panel worker-orders-panel"><div class="worker-orders-head"><div><h3>'+esc(t.orders)+'</h3><small class="muted">آخر 25 طلباً داخل المحل</small></div><button id="workerRefreshOrders" class="secondary">'+esc(t.refresh)+'</button></div><div id="workerOrders" class="worker-order-list"></div></section>'+
   '</div>';
- $("workerLogout").onclick=async()=>{sessionStorage.clear();await sb.auth.signOut();location.reload();};
+ $("workerLogout").onclick=async()=>{clearBizoraAuthState();await sb.auth.signOut();location.reload();};
  const renderProducts=()=>{
   const query=($("workerSearch").value||"").toLocaleLowerCase();
   const shown=menu.filter(p=>p.item_type===filter&&String(p.name||"").toLocaleLowerCase().includes(query)).slice(0,16);
