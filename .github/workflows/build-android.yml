@@ -6,8 +6,12 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'about.html'
+      - 'privacy.html'
+      - 'terms.html'
       - 'style.css'
       - 'app.js'
+      - 'locale.js'
       - 'manifest.webmanifest'
       - 'icons/**'
       - 'package.json'

@@ -20,6 +20,10 @@ const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
 const admin = createClient(supabaseUrl, serviceKey || "", {
   auth: { autoRefreshToken: false, persistSession: false },
 });
+// Secret used to hash owner codes and client IPs. Set BIZORA_HASH_PEPPER so that rotating the
+// Supabase service key does not invalidate every owner code. Without it we fall back to the
+// service key, which keeps existing hashes valid.
+const hashPepper = Deno.env.get("BIZORA_HASH_PEPPER") || String(serviceKey);
 
 async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -48,7 +52,7 @@ function getIp(req: Request) {
 async function ownerCodeLogin(req: Request, body: Record<string, unknown>) {
     const code = String(body.code || "").trim();
     if (code.length !== 12 || [...code].some((digit) => digit < "0" || digit > "9")) return response({ error: "Invalid access code." }, 400);
-  const ipHash = await sha256(String(serviceKey) + ":bizora-owner-ip:" + getIp(req));
+  const ipHash = await sha256(hashPepper + ":bizora-owner-ip:" + getIp(req));
   const { data: allowed, error: rateError } = await admin.rpc(
     "bizora_owner_code_rate_limit", { p_ip_hash: ipHash, p_success: null },
   );
@@ -56,7 +60,7 @@ async function ownerCodeLogin(req: Request, body: Record<string, unknown>) {
     return response({ error: "Too many attempts. Try again in 15 minutes." }, 429);
   }
 
-  const codeHash = await sha256(String(serviceKey) + ":bizora-owner-code:" + code);
+  const codeHash = await sha256(hashPepper + ":bizora-owner-code:" + code);
   const { data: record, error } = await admin.from("owner_access_codes")
     .select("organization_id,user_id").eq("code_hash", codeHash).maybeSingle();
   if (error || !record) {
@@ -109,7 +113,7 @@ async function authenticatedAction(req: Request, body: Record<string, unknown>) 
     const digits = new Uint8Array(12);
     crypto.getRandomValues(digits);
     const code = [...digits].map((v) => String(v % 10)).join("");
-    const codeHash = await sha256(String(serviceKey) + ":bizora-owner-code:" + code);
+    const codeHash = await sha256(hashPepper + ":bizora-owner-code:" + code);
     const { error } = await admin.from("owner_access_codes").upsert({
       organization_id: organizationId, user_id: user.id,
       code_hash: codeHash, updated_at: new Date().toISOString(),
@@ -125,12 +129,15 @@ async function authenticatedAction(req: Request, body: Record<string, unknown>) 
     const { data: memberships, error } = await admin.from("memberships")
       .select("id,user_id,role,is_active,created_at")
       .eq("organization_id", organizationId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(500);
     if (error) return response({ error: "Could not load team accounts." }, 500);
-    const { data: userPage, error: usersError } =
-      await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    if (usersError) return response({ error: "Could not load account details." }, 500);
-    const usersById = new Map((userPage.users || []).map((item) => [item.id, item]));
+    // Fetch only this organization's accounts (listUsers would scan every tenant and stop at 1000).
+    const accounts = await Promise.all((memberships || []).map(async (membership) => {
+      const { data } = await admin.auth.admin.getUserById(membership.user_id);
+      return [membership.user_id, data?.user] as const;
+    }));
+    const usersById = new Map(accounts);
     const workers = (memberships || []).map((membership) => {
       const account = usersById.get(membership.user_id);
       return {
@@ -187,6 +194,16 @@ async function authenticatedAction(req: Request, body: Record<string, unknown>) 
       .eq("organization_id", organizationId).eq("user_id", workerId)
       .in("role", ["staff", "cashier", "manager"]).select("id").maybeSingle();
     if (error) return response({ error: "Could not deactivate the worker." }, 500);
+    if (!data) return response({ error: "Worker account was not found." }, 404);
+    return response({ ok: true });
+  }
+  if (action === "reactivate_worker") {
+    const workerId = String(body.user_id || "");
+    if (!workerId) return response({ error: "Worker account is required." }, 400);
+    const { data, error } = await admin.from("memberships").update({ is_active: true })
+      .eq("organization_id", organizationId).eq("user_id", workerId)
+      .in("role", ["staff", "cashier", "manager"]).select("id").maybeSingle();
+    if (error) return response({ error: "Could not reactivate the worker." }, 500);
     if (!data) return response({ error: "Worker account was not found." }, 404);
     return response({ ok: true });
   }

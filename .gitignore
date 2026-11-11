@@ -1,0 +1,21 @@
+# Dependencies and build output
+node_modules/
+www/
+android/
+ios/
+
+# Secrets and local config
+.env
+.env.*
+*.local
+
+# Supabase CLI
+supabase/.temp/
+supabase/.branches/
+
+# OS / editor / logs
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

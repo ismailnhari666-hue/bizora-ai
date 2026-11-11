@@ -4,7 +4,7 @@
   "private": true,
   "description": "BIZORA AI Android and web application",
   "scripts": {
-    "build": "mkdir -p www/icons && cp index.html style.css app.js locale.js manifest.webmanifest www/ && cp icons/bizora-icon.svg www/icons/"
+    "build": "mkdir -p www/icons && cp index.html about.html privacy.html terms.html style.css app.js locale.js manifest.webmanifest www/ && cp icons/bizora-icon.svg www/icons/"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
