@@ -12,6 +12,7 @@ on:
       - 'style.css'
       - 'app.js'
       - 'locale.js'
+      - 'i18n-extra.js'
       - 'manifest.webmanifest'
       - 'icons/**'
       - 'package.json'
