@@ -89,7 +89,7 @@ $("authForm").onsubmit=async e=>{
 };
 $("logout").onclick=async()=>{clearBizoraAuthState();await sb.auth.signOut();location.reload()};
 $("refresh").onclick=()=>loadPage(currentPage);
-$("orgForm").onsubmit=async e=>{e.preventDefault();$("orgMsg").textContent="Création…";const {data,error}=await sb.rpc("bizora_create_organization",{p_name:$("orgName").value.trim()});if(error){$("orgMsg").textContent=error.message;return}toast("تم إنشاء المحل");await loadOrganizations(data)};
+$("orgForm").onsubmit=async e=>{e.preventDefault();$("orgMsg").textContent="Création…";const {data,error}=await sb.rpc("bizora_create_organization",{p_name:$("orgName").value.trim()});if(error){$("orgMsg").textContent=error.message;return}toast("تم إنشاء المحل");try{const t=await sb.rpc("bizora_set_business_type",{p_org:data,p_type:$("orgType").value});if(t.error)console.warn("business_type:",t.error.message)}catch(e){console.warn("business_type:",e)}await loadOrganizations(data)};
 $("orgSelect").onchange=async e=>{await loadOrganizations(e.target.value)};
 document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>{if(document.body.classList.contains("worker-mode"))return;loadPage(b.dataset.page)});
 async function boot(){
