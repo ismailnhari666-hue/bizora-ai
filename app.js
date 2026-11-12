@@ -13,6 +13,13 @@ function clearBizoraAuthState(){
 }
 const $ = id => document.getElementById(id);
 let mode="owner-code", user=null, orgs=[], orgId=null, products=[], currentPage="overview", currentRole=null, workerRefreshTimer=null;
+const BUSINESS_PROFILES={
+  restaurant:{tables:true,menu:true},cafe:{tables:true,menu:true},
+  clothing:{tables:false,menu:false},shoes:{tables:false,menu:false},
+  supermarket:{tables:false,menu:false},small_shop:{tables:false,menu:false}
+};
+const bizProfile=()=>BUSINESS_PROFILES[(orgs.find(o=>o.id===orgId)||{}).business_type]||BUSINESS_PROFILES.restaurant;
+function applyBusinessProfile(){const pr=bizProfile();document.body.classList.toggle("no-tables",!pr.tables);document.body.classList.toggle("no-menu",!pr.menu);}
 const money=n=>new Intl.NumberFormat(window.BizoraI18n?.locale||"fr-MA",{style:"currency",currency:"MAD"}).format(Number(n||0));
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function toast(msg){$("toast").textContent=msg;$("toast").style.display="block";setTimeout(()=>$("toast").style.display="none",3200)}
@@ -115,7 +122,7 @@ async function accessRequest(body){
 }
 async function loadOrganizations(preselect){
  const {data,error}=await sb.from("memberships")
-  .select("organization_id,role,is_active,organizations(id,name,currency)")
+  .select("organization_id,role,is_active,organizations(id,name,currency,business_type)")
   .eq("user_id",user.id);
  if(error){toast(error.message);return;}
  const memberships=(data||[]).filter(row=>row.organizations);
@@ -128,7 +135,7 @@ async function loadOrganizations(preselect){
  }
  orgs=activeMemberships.map(row=>({...row.organizations,role:String(row.role||"").toLowerCase()}));
  if(!orgs.length){
-  currentRole=null;orgId=null;document.body.classList.remove("worker-mode");
+  currentRole=null;orgId=null;document.body.classList.remove("worker-mode","no-tables","no-menu");
   $("orgSetup").classList.remove("hidden");$("content").innerHTML="";
   $("orgSelect").innerHTML="";
   $("navUsers").classList.add("hidden");
@@ -139,6 +146,7 @@ async function loadOrganizations(preselect){
  $("orgSelect").value=orgId;
  const activeOrg=orgs.find(o=>o.id===orgId);
  currentRole=activeOrg.role;
+ applyBusinessProfile();
  const workerOnly=["staff","cashier","manager","employee","worker"].includes(currentRole);
  document.body.classList.toggle("worker-mode",workerOnly);
  $("orgSelect").closest(".orgbox")?.classList.toggle("hidden",workerOnly);
@@ -268,26 +276,26 @@ async function workerOrderInterface(){
  ]);
  if(productResult.error){$("content").innerHTML='<div class="panel notice">'+esc(productResult.error.message)+'</div>';return;}
  const menu=(productResult.data||[]).filter(p=>p.item_type==="food"||p.item_type==="drink");
- let filter="food";
+ let filter=bizProfile().menu?"food":"all";
  workerCart=[];
  const statusText=value=>statusLabels[value]?.[lang]||statusLabels[value]?.ar||value;
  $("content").innerHTML=
   '<div class="worker-screen">'+
    '<div class="worker-head"><div><span class="worker-kicker">'+esc(t.sub)+'</span><h2>'+esc(t.title)+'</h2></div><div class="worker-head-actions"><span class="worker-preview-badge">4 × 4</span><button id="workerLogout" class="worker-logout">'+esc(t.logout)+'</button></div></div>'+
-   '<div class="worker-layout"><section class="worker-menu"><div class="worker-toolbar"><div class="worker-tabs"><button class="active" data-filter="food">🍽 '+esc(t.food)+'</button><button data-filter="drink">🥤 '+esc(t.drink)+'</button></div><input id="workerSearch" type="search" placeholder="'+esc(t.search)+'"></div><div id="workerProducts" class="worker-products"></div></section>'+
+   '<div class="worker-layout"><section class="worker-menu"><div class="worker-toolbar"><div class="worker-tabs menu-only"><button class="active" data-filter="food">🍽 '+esc(t.food)+'</button><button data-filter="drink">🥤 '+esc(t.drink)+'</button></div><input id="workerSearch" type="search" placeholder="'+esc(t.search)+'"></div><div id="workerProducts" class="worker-products"></div></section>'+
    '<aside class="worker-order"><div class="worker-order-head"><div><h3>'+esc(t.cart)+'</h3><small><span id="workerCount">0</span> '+esc(t.qty)+'</small></div><button id="workerClear" class="ghost">'+esc(t.clear)+'</button></div>'+
-   '<label class="worker-table-label">'+esc(t.table)+'<select id="workerTable" required><option value="">'+esc(t.choose)+'</option>'+Array.from({length:12},(_,i)=>'<option value="Table '+(i+1)+'">'+(i+1)+'</option>').join("")+'</select></label>'+
+   '<label class="worker-table-label table-only">'+esc(t.table)+'<select id="workerTable" required><option value="">'+esc(t.choose)+'</option>'+Array.from({length:12},(_,i)=>'<option value="Table '+(i+1)+'">'+(i+1)+'</option>').join("")+'</select></label>'+
    '<div id="workerCart" class="worker-cart"></div><div class="worker-total"><span>'+esc(t.total)+'</span><strong id="workerTotal">'+money(0)+'</strong></div><button id="workerSend" class="primary worker-submit">'+esc(t.confirm)+'</button></aside></div>'+
    '<section class="panel worker-orders-panel"><div class="worker-orders-head"><div><h3>'+esc(t.orders)+'</h3><small class="muted">آخر 25 طلباً داخل المحل</small></div><button id="workerRefreshOrders" class="secondary">'+esc(t.refresh)+'</button></div><div id="workerOrders" class="worker-order-list"></div></section>'+
   '</div>';
  $("workerLogout").onclick=async()=>{clearBizoraAuthState();await sb.auth.signOut();location.reload();};
  const renderProducts=()=>{
   const query=($("workerSearch").value||"").toLocaleLowerCase();
-  const shown=menu.filter(p=>p.item_type===filter&&String(p.name||"").toLocaleLowerCase().includes(query)).slice(0,16);
+  const shown=menu.filter(p=>(filter==="all"||p.item_type===filter)&&String(p.name||"").toLocaleLowerCase().includes(query)).slice(0,16);
   const slots=Array.from({length:16},(_,i)=>shown[i]||null);
   $("workerProducts").innerHTML=slots.map((p,i)=>{
-   if(!p)return '<article class="worker-product-tile is-empty"><div class="worker-product-art">＋</div><div class="worker-product-info"><b>'+esc(t.food===filter?t.food:t.drink)+'</b><small>—</small></div></article>';
-   const icon=p.item_type==="drink"?"🥤":"🍽️";
+   if(!p)return '<article class="worker-product-tile is-empty"><div class="worker-product-art">＋</div><div class="worker-product-info"><b>'+esc(filter==="food"?t.food:filter==="drink"?t.drink:"")+'</b><small>—</small></div></article>';
+   const icon=!bizProfile().menu?"🛍️":(p.item_type==="drink"?"🥤":"🍽️");
    return '<article class="worker-product-tile has-product"><div class="worker-product-art" aria-hidden="true">'+icon+'</div><div class="worker-product-info"><b>'+esc(p.name)+'</b><small>'+esc(p.category||"")+'</small><strong>'+money(p.unit_price)+'</strong></div><button class="worker-add" data-add="'+p.id+'" aria-label="'+esc(t.add)+' '+esc(p.name)+'">+</button></article>';
   }).join("");
   $("workerProducts").querySelectorAll("[data-add]").forEach(button=>button.onclick=()=>{
@@ -333,7 +341,7 @@ async function workerOrderInterface(){
  $("workerRefreshOrders").onclick=refreshOrders;
  $("workerSend").onclick=async()=>{
   if(!workerCart.length){toast(t.empty);return;}
-  const table=$("workerTable").value;
+  const table=bizProfile().tables?$("workerTable").value:"Comptoir";
   if(!table){toast(t.choose);$("workerTable").focus();return;}
   const button=$("workerSend");button.disabled=true;button.textContent="…";
   const {data,error}=await sb.rpc("bizora_create_order",{
@@ -342,7 +350,7 @@ async function workerOrderInterface(){
   });
   button.disabled=false;button.textContent=t.confirm;
   if(error){toast(error.message);return;}
-  workerCart=[];renderCart();$("workerTable").value="";
+  workerCart=[];renderCart();if(bizProfile().tables)$("workerTable").value="";
   toast(t.orderDone);await refreshOrders();
  };
  renderProducts();renderCart();
@@ -401,11 +409,11 @@ async function productPage(showArchived=false){
   const categories=[...new Set(products.map(p=>p.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ar"));
   $("content").innerHTML=`
     <div class="panel">
-      <div class="section-head"><div><h3>لائحة المأكولات والمشروبات</h3><span class="muted">أضف المنتجات وحدد سعر كل منتج بالدرهم (MAD).</span></div><span class="badge">${products.length} عنصر</span></div>
+      <div class="section-head"><div><h3>${bizProfile().menu?"لائحة المأكولات والمشروبات":"لائحة المنتجات"}</h3><span class="muted">أضف المنتجات وحدد سعر كل منتج بالدرهم (MAD).</span></div><span class="badge">${products.length} عنصر</span></div>
       <form id="productForm" class="form-grid">
         <input type="hidden" name="id" id="productId">
         <label>اسم المنتج<input name="name" maxlength="120" required placeholder="مثال: طاجين دجاج"></label>
-        <label>النوع<select name="item_type" id="productType"><option value="food">مأكولات</option><option value="drink">مشروبات</option></select></label>
+        <label class="menu-only">النوع<select name="item_type" id="productType"><option value="food">مأكولات</option><option value="drink">مشروبات</option></select></label>
         <label>الصنف / الفئة<input name="category" maxlength="80" placeholder="مثال: طواجن، عصائر، سلطات"></label>
         <label>ثمن البيع (درهم)<input name="unit_price" type="number" min="0" max="9999999" step=".01" required placeholder="مثال: 35"></label>
         <label>ثمن التكلفة (اختياري)<input name="cost_price" type="number" min="0" step=".01" value="0"></label>
@@ -417,18 +425,18 @@ async function productPage(showArchived=false){
           <button type="button" class="secondary" id="cancelProductEdit" hidden>إلغاء التعديل</button>
         </div>
       </form>
-      <p class="muted" id="productFormMsg" aria-live="polite">تُوجَّه المأكولات إلى المطبخ والمشروبات إلى البار تلقائياً.</p>
+      <p class="muted" id="productFormMsg" aria-live="polite">${bizProfile().menu?"تُوجَّه المأكولات إلى المطبخ والمشروبات إلى البار تلقائياً.":""}</p>
     </div>
     <div class="section-head"><div><h3>${showArchived?"المنتجات المؤرشفة":"اللائحة الحالية"} (${products.length})</h3><span class="muted">يمكنك تعديل الاسم والثمن أو إخفاء منتج دون حذف سجل المبيعات السابق.</span></div><button class="secondary" id="toggleArchived">${showArchived?"عرض اللائحة الحالية":"عرض المؤرشف"}</button></div>
     <div class="panel">
       <div class="form-grid" style="margin-bottom:14px">
         <label>بحث عن منتج<input id="productSearch" type="search" placeholder="كتب اسم المنتج…"></label>
-        <label>تصفية حسب النوع<select id="productTypeFilter"><option value="">الكل</option><option value="food">مأكولات</option><option value="drink">مشروبات</option></select></label>
+        <label class="menu-only">تصفية حسب النوع<select id="productTypeFilter"><option value="">الكل</option><option value="food">مأكولات</option><option value="drink">مشروبات</option></select></label>
         <label>تصفية حسب الفئة<select id="productCategoryFilter"><option value="">جميع الفئات</option>${categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select></label>
       </div>
       <div class="table-wrap"><table><thead><tr><th>المنتج</th><th>النوع</th><th>الفئة</th><th>الثمن</th><th>المخزون</th><th>إجراء</th></tr></thead><tbody id="productRows">${products.length?products.map(p=>`
         <tr data-name="${esc(p.name.toLowerCase())}" data-type="${esc(p.item_type||"food")}" data-category="${esc(p.category||"")}">
-          <td><b>${esc(p.name)}</b></td><td><span class="badge">${p.item_type==="drink"?"مشروب":"وجبة"}</span></td><td>${esc(p.category||"—")}</td><td><b>${money(p.unit_price)}</b></td><td>${Number(p.stock_quantity||0)}</td>
+          <td><b>${esc(p.name)}</b></td><td><span class="badge">${bizProfile().menu?(p.item_type==="drink"?"مشروب":"وجبة"):"—"}</span></td><td>${esc(p.category||"—")}</td><td><b>${money(p.unit_price)}</b></td><td>${Number(p.stock_quantity||0)}</td>
           <td><div class="row" style="gap:6px;flex-wrap:wrap"><button type="button" class="secondary edit-product" data-id="${p.id}">تعديل</button><button type="button" class="secondary archive-product" data-id="${p.id}">${showArchived?"استرجاع":"إخفاء"}</button></div></td>
         </tr>`).join(""):'<tr><td colspan="6" class="empty">لم تتم إضافة أي منتج بعد. استخدم النموذج لإضافة أول وجبة أو مشروب.</td></tr>'}</tbody></table></div>
     </div>`;
@@ -475,7 +483,7 @@ async function salesPage(){
     $("saleHistory").innerHTML=s?.length?`<div class="table-wrap sales-history-wrap"><table class="sales-history-table"><thead><tr><th>المرجع</th><th>التاريخ</th><th>الأداء</th><th>الحالة</th><th>المجموع</th></tr></thead><tbody>${s.map(x=>`<tr><td>${x.id.slice(0,8).toUpperCase()}</td><td>${new Date(x.created_at).toLocaleString(window.BizoraI18n?.locale||"fr-MA")}</td><td>${esc(x.payment_method)}</td><td>${esc(x.status||"—")}</td><td>${money(x.total)}</td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">لا توجد مبيعات مسجلة بعد.</div>';
     return;
   }
-const {data,error}=await sb.from("products").select("id,name,unit_price,stock_quantity,item_type,category").eq("organization_id",orgId).eq("is_active",true).gt("stock_quantity",0).order("name");if(error){toast(error.message);return}products=data||[];$("content").innerHTML=`<div class="panel"><h3>Enregistrer une vente</h3><p class="muted">Le stock sera diminué automatiquement après validation.</p><form id="saleForm"><label>Produit<select name="product_id" required>${products.map(p=>`<option value="${p.id}">${esc(p.name)} — ${p.item_type==="drink"?"مشروبات":"مأكولات"}${p.category?" / "+esc(p.category):""} — ${money(p.unit_price)} (Stock: ${p.stock_quantity})</option>`).join("")}</select></label><div class="form-grid"><label>Quantité<input name="quantity" type="number" min=".001" step=".001" value="1" required></label><label>Remise (MAD)<input name="discount" type="number" min="0" step=".01" value="0"></label><label>Taxe (MAD)<input name="tax" type="number" min="0" step=".01" value="0"></label></div><label>Mode de paiement<select name="payment_method"><option value="cash">Espèces</option><option value="card">Carte</option><option value="transfer">Virement</option><option value="other">Autre</option></select></label><label>Note<input name="note"></label><button class="primary">Confirmer la vente</button></form></div><div class="section-head"><h3>Historique des ventes</h3></div><div id="saleHistory" class="panel">Chargement…</div>`;if(!products.length)$("saleForm").querySelector("button").disabled=true;$("saleForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),pid=f.get("product_id"),q=Number(f.get("quantity"));const {data:prod}=await sb.from("products").select("stock_quantity").eq("id",pid).single();if(!prod||q>Number(prod.stock_quantity)){toast("Stock insuffisant");return}const r=await sb.rpc("bizora_create_sale",{p_org:orgId,p_branch:null,p_items:[{product_id:pid,quantity:q}],p_discount:Number(f.get("discount")||0),p_tax:Number(f.get("tax")||0),p_payment_method:f.get("payment_method"),p_note:f.get("note")||null});if(r.error){toast(r.error.message);return}toast("Vente enregistrée");salesPage()};const {data:s}=await sb.from("sales").select("id,total,payment_method,created_at").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(15);$("saleHistory").innerHTML=s?.length?`<div class="table-wrap sales-history-wrap"><table class="sales-history-table"><thead><tr><th>المرجع</th><th>التاريخ</th><th>Paiement</th><th>Total</th></tr></thead><tbody>${s.map(x=>`<tr><td>${x.id.slice(0,8).toUpperCase()}</td><td>${new Date(x.created_at).toLocaleString(window.BizoraI18n?.locale||"fr-MA")}</td><td>${esc(x.payment_method)}</td><td>${money(x.total)}</td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">Aucune vente.</div>'}
+const {data,error}=await sb.from("products").select("id,name,unit_price,stock_quantity,item_type,category").eq("organization_id",orgId).eq("is_active",true).gt("stock_quantity",0).order("name");if(error){toast(error.message);return}products=data||[];$("content").innerHTML=`<div class="panel"><h3>Enregistrer une vente</h3><p class="muted">Le stock sera diminué automatiquement après validation.</p><form id="saleForm"><label>Produit<select name="product_id" required>${products.map(p=>`<option value="${p.id}">${esc(p.name)}${bizProfile().menu?" — "+(p.item_type==="drink"?"مشروبات":"مأكولات"):""}${p.category?" / "+esc(p.category):""} — ${money(p.unit_price)} (Stock: ${p.stock_quantity})</option>`).join("")}</select></label><div class="form-grid"><label>Quantité<input name="quantity" type="number" min=".001" step=".001" value="1" required></label><label>Remise (MAD)<input name="discount" type="number" min="0" step=".01" value="0"></label><label>Taxe (MAD)<input name="tax" type="number" min="0" step=".01" value="0"></label></div><label>Mode de paiement<select name="payment_method"><option value="cash">Espèces</option><option value="card">Carte</option><option value="transfer">Virement</option><option value="other">Autre</option></select></label><label>Note<input name="note"></label><button class="primary">Confirmer la vente</button></form></div><div class="section-head"><h3>Historique des ventes</h3></div><div id="saleHistory" class="panel">Chargement…</div>`;if(!products.length)$("saleForm").querySelector("button").disabled=true;$("saleForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),pid=f.get("product_id"),q=Number(f.get("quantity"));const {data:prod}=await sb.from("products").select("stock_quantity").eq("id",pid).single();if(!prod||q>Number(prod.stock_quantity)){toast("Stock insuffisant");return}const r=await sb.rpc("bizora_create_sale",{p_org:orgId,p_branch:null,p_items:[{product_id:pid,quantity:q}],p_discount:Number(f.get("discount")||0),p_tax:Number(f.get("tax")||0),p_payment_method:f.get("payment_method"),p_note:f.get("note")||null});if(r.error){toast(r.error.message);return}toast("Vente enregistrée");salesPage()};const {data:s}=await sb.from("sales").select("id,total,payment_method,created_at").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(15);$("saleHistory").innerHTML=s?.length?`<div class="table-wrap sales-history-wrap"><table class="sales-history-table"><thead><tr><th>المرجع</th><th>التاريخ</th><th>Paiement</th><th>Total</th></tr></thead><tbody>${s.map(x=>`<tr><td>${x.id.slice(0,8).toUpperCase()}</td><td>${new Date(x.created_at).toLocaleString(window.BizoraI18n?.locale||"fr-MA")}</td><td>${esc(x.payment_method)}</td><td>${money(x.total)}</td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">Aucune vente.</div>'}
 async function ordersPage(){
   const [orderResult, productResult] = await Promise.all([
     sb.from("orders").select("*,order_items(*)").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(50),
@@ -484,7 +492,7 @@ async function ordersPage(){
   if(orderResult.error||productResult.error){toast((orderResult.error||productResult.error).message);return}
   const data=orderResult.data||[], available=productResult.data||[];
   const statuses=[["pending","En attente"],["preparing","En préparation"],["ready","Prête"],["served","Servie"],["completed","Terminée"],["cancelled","Annulée"]];
-  const productOptions=available.map(p=>`<option value="${p.id}">${esc(p.name)} — ${p.item_type==="drink"?"مشروبات":"مأكولات"}${p.category?" / "+esc(p.category):""} — ${money(p.unit_price)}</option>`).join("");
+  const productOptions=available.map(p=>`<option value="${p.id}">${esc(p.name)}${bizProfile().menu?" — "+(p.item_type==="drink"?"مشروبات":"مأكولات"):""}${p.category?" / "+esc(p.category):""} — ${money(p.unit_price)}</option>`).join("");
   const renderKitchen=()=>{
     const groups=[["pending","En attente"],["preparing","En préparation"],["ready","Prête"],["served","Servie"]];
     $("content").innerHTML='<div class="section-head"><div><h3>Écran cuisine</h3><span class="muted">Suivi des commandes</span></div><button class="secondary" id="backOrders">Retour aux commandes</button></div><div class="kitchen-board">' + groups.map(([key,label])=>{
@@ -497,10 +505,10 @@ async function ordersPage(){
   };
   const bindOrderStatus=()=>document.querySelectorAll(".order-status").forEach(select=>select.onchange=async e=>{const id=e.target.dataset.id,status=e.target.value;const {error}=await sb.from("orders").update({status,updated_at:new Date().toISOString()}).eq("id",id).eq("organization_id",orgId);if(error){toast(error.message);await ordersPage();return}toast("Statut mis à jour");await ordersPage();});
   $("content").innerHTML=`
-    <div class="section-head"><div><h3>Commandes</h3><span class="muted">Gestion des commandes clients</span></div><button class="secondary" id="openKitchen">Ouvrir l’écran cuisine</button></div>
+    <div class="section-head"><div><h3>Commandes</h3><span class="muted">Gestion des commandes clients</span></div><button class="secondary menu-only" id="openKitchen">Ouvrir l’écran cuisine</button></div>
     <div class="panel"><h3>Créer une commande</h3><p class="muted">Choisissez le type de commande et ajoutez les articles.</p>
       <form id="orderForm">
-        <label>Type de commande<select name="order_type" id="orderType"><option value="table">Sur place / Table</option><option value="delivery">Livraison</option></select></label>
+        <label>Type de commande<select name="order_type" id="orderType"><option value="table">${bizProfile().tables?"Sur place / Table":"Au comptoir"}</option><option value="delivery">Livraison</option></select></label>
         <div id="orderCustomerField" hidden><label>Nom du client (livraison)<input name="customer_label" maxlength="120" placeholder="Nom du client"></label></div>
         <div id="orderTableField"><label>Numéro de table<input name="table_label" maxlength="60" placeholder="Ex. Table 4" required></label></div>
         <div class="section-head"><h3>Articles</h3><button type="button" class="secondary" id="addOrderLine">+ Ajouter un article</button></div>
@@ -514,9 +522,9 @@ async function ordersPage(){
   const typeSelect=$("orderType"), customerWrap=$("orderCustomerField"), tableWrap=$("orderTableField");
   const syncOrderType=()=>{
     const delivery=typeSelect.value==="delivery";
-    customerWrap.hidden=!delivery;tableWrap.hidden=delivery;
+    customerWrap.hidden=!delivery;tableWrap.hidden=delivery||!bizProfile().tables;
     customerWrap.querySelector("input").required=delivery;
-    tableWrap.querySelector("input").required=!delivery;
+    tableWrap.querySelector("input").required=!delivery&&bizProfile().tables;
   };
   typeSelect.onchange=syncOrderType;syncOrderType();
   const addLine=()=>{
@@ -533,7 +541,7 @@ async function ordersPage(){
     if(!lines.length||lines.some(x=>!x.product_id||!Number.isFinite(x.quantity)||x.quantity<=0)){toast("Vérifiez les articles et les quantités");return}
     const form=new FormData(e.target),delivery=form.get("order_type")==="delivery";
     const customer=delivery?String(form.get("customer_label")||"").trim():null;
-    const table=delivery?"Livraison":String(form.get("table_label")||"").trim();
+    const table=delivery?"Livraison":(bizProfile().tables?String(form.get("table_label")||"").trim():"Comptoir");
     if(delivery&&!customer){toast("Le nom du client est obligatoire pour une livraison");return}
     const {error}=await sb.rpc("bizora_create_order",{p_org:orgId,p_customer:customer,p_table:table,p_note:form.get("note"),p_items:lines});
     if(error){toast(error.message);return}toast("Commande créée avec succès");await ordersPage();
@@ -564,20 +572,20 @@ async function camerasPage(){
   const other=revenue-cash;
   const hourBars=hours.map((n,h)=>'<div class="hour-bar-wrap"><span>'+n+'</span><div class="hour-bar" style="height:'+Math.max(4,n*12)+'px"></div><small>'+String(h).padStart(2,"0")+':00</small></div>').join("");
   const lowRows=lowStock.map(p=>'<tr><td>'+esc(p.name)+'</td><td>'+p.stock_quantity+'</td><td>'+p.low_stock_threshold+'</td><td>'+money(p.unit_price)+'</td></tr>').join("");
-  const cameraFeatures=[["people_in_out","Suivi des passages entrée / sortie","Caméra d’entrée"],["visitor_count","Comptage des visiteurs uniques","Caméra d’entrée"],["staff_face_recognition","Reconnaissance faciale des employés (avec consentement)","Caméra d’entrée"],["staff_tracking","Suivi des déplacements des employés","Zones autorisées"],["table_count","Comptage des tables occupées / libres","Caméra de salle"],["meals_count","Comptage des repas servis","Caméra cuisine"],["drinks_count","Comptage des boissons servies","Caméra bar"],["queue_detection","Détection de file d’attente","Zone d’attente"],["zone_analytics","Analyse d’occupation de zone","Zone / réserve"]];
+  const cameraFeatures=[["people_in_out","Suivi des passages entrée / sortie","Caméra d’entrée"],["visitor_count","Comptage des visiteurs uniques","Caméra d’entrée"],["staff_face_recognition","Reconnaissance faciale des employés (avec consentement)","Caméra d’entrée"],["staff_tracking","Suivi des déplacements des employés","Zones autorisées"],["table_count","Comptage des tables occupées / libres","Caméra de salle"],["meals_count","Comptage des repas servis","Caméra cuisine"],["drinks_count","Comptage des boissons servies","Caméra bar"],["queue_detection","Détection de file d’attente","Zone d’attente"],["zone_analytics","Analyse d’occupation de zone","Zone / réserve"]].filter(([key])=>!(key==="table_count"&&!bizProfile().tables)&&!((key==="meals_count"||key==="drinks_count")&&!bizProfile().menu));
   const settingsRes=await sb.from("camera_feature_settings").select("camera_id,feature_key,is_enabled").eq("organization_id",orgId);
   if(settingsRes.error){toast("Paramètres caméra : "+settingsRes.error.message);return}
   const featureSettings=settingsRes.data||[];
   const tableZonesRes=await sb.from("camera_table_zones").select("id,camera_id,table_label,region_polygon,is_enabled").eq("organization_id",orgId).order("table_label");
   if(tableZonesRes.error){toast("Configuration des tables : "+tableZonesRes.error.message);return}
   const tableZones=tableZonesRes.data||[];
-  const cameraCards=cameras.map(c=>'<article class="camera-card"><div class="camera-preview">◉<small>'+esc(String(c.connection_status||"pending").toUpperCase())+'</small></div><div class="camera-meta"><b>'+esc(c.name)+'</b><span>'+esc(c.brand||"Autre")+' · '+esc(c.camera_type)+' · '+esc(c.zone||"Zone non définie")+'</span><small>UID : '+esc(c.serial_number||"Non renseigné")+' · '+esc(c.connection_method||"manual")+'</small><div class="camera-feature-list"><b>Fonctions indépendantes</b>'+cameraFeatures.map(([key,label])=>{const setting=featureSettings.find(x=>x.camera_id===c.id&&x.feature_key===key);return '<label class="camera-feature"><span>'+label+'</span><input type="checkbox" data-camera-feature="'+key+'" data-camera-id="'+c.id+'" '+(setting?.is_enabled?'checked':'')+'></label>'}).join('')+'<button class="primary save-camera-features" data-id="'+c.id+'">Enregistrer les fonctions</button><small>Chaque fonction se règle séparément pour cette caméra.</small></div><div class="camera-feature-list table-zone-setup"><b>Plan des tables — cette caméra</b><small>'+tableZones.filter(t=>t.camera_id===c.id).length+' table(s) enregistrée(s) · '+tableZones.filter(t=>t.camera_id===c.id&&t.region_polygon).length+' zone(s) calibrée(s)</small><label>أسماء الطاولات (مثال: T1, T2, T3)<input type="text" data-table-labels="'+c.id+'" placeholder="T1, T2, T3"></label><button type="button" class="secondary save-camera-tables" data-id="'+c.id+'">Enregistrer les tables</button><div class="muted">'+(tableZones.filter(t=>t.camera_id===c.id).map(t=>esc(t.table_label)+(t.region_polygon?' ✓':' — à calibrer')).join(' · ')||'Aucune table configurée')+'</div><small>Le comptage automatique démarre après calibration des zones sur l’image et connexion du Gateway AI local.</small></div><button class="ghost camera-delete" data-id="'+c.id+'">Supprimer</button></div></article>').join("");
+  const cameraCards=cameras.map(c=>'<article class="camera-card"><div class="camera-preview">◉<small>'+esc(String(c.connection_status||"pending").toUpperCase())+'</small></div><div class="camera-meta"><b>'+esc(c.name)+'</b><span>'+esc(c.brand||"Autre")+' · '+esc(c.camera_type)+' · '+esc(c.zone||"Zone non définie")+'</span><small>UID : '+esc(c.serial_number||"Non renseigné")+' · '+esc(c.connection_method||"manual")+'</small><div class="camera-feature-list"><b>Fonctions indépendantes</b>'+cameraFeatures.map(([key,label])=>{const setting=featureSettings.find(x=>x.camera_id===c.id&&x.feature_key===key);return '<label class="camera-feature"><span>'+label+'</span><input type="checkbox" data-camera-feature="'+key+'" data-camera-id="'+c.id+'" '+(setting?.is_enabled?'checked':'')+'></label>'}).join('')+'<button class="primary save-camera-features" data-id="'+c.id+'">Enregistrer les fonctions</button><small>Chaque fonction se règle séparément pour cette caméra.</small></div><div class="camera-feature-list table-zone-setup table-only"><b>Plan des tables — cette caméra</b><small>'+tableZones.filter(t=>t.camera_id===c.id).length+' table(s) enregistrée(s) · '+tableZones.filter(t=>t.camera_id===c.id&&t.region_polygon).length+' zone(s) calibrée(s)</small><label>أسماء الطاولات (مثال: T1, T2, T3)<input type="text" data-table-labels="'+c.id+'" placeholder="T1, T2, T3"></label><button type="button" class="secondary save-camera-tables" data-id="'+c.id+'">Enregistrer les tables</button><div class="muted">'+(tableZones.filter(t=>t.camera_id===c.id).map(t=>esc(t.table_label)+(t.region_polygon?' ✓':' — à calibrer')).join(' · ')||'Aucune table configurée')+'</div><small>Le comptage automatique démarre après calibration des zones sur l’image et connexion du Gateway AI local.</small></div><button class="ghost camera-delete" data-id="'+c.id+'">Supprimer</button></div></article>').join("");
   let html='<div class="ai-hero"><div><span class="ai-kicker">BIZORA INTELLIGENCE</span><h2>AI Shop Intelligence</h2><p>Surveillance, activité commerciale et opérations réunies dans un seul centre de contrôle.</p></div><span class="ai-status"><i></i> Analyse des données disponible</span></div>';
   html+='<div class="ai-tabs"><button class="ai-tab active" data-ai-tab="dashboard">Vue intelligente</button><button class="ai-tab" data-ai-tab="cameras">Caméras</button><button class="ai-tab" data-ai-tab="cash">Contrôle caisse</button><button class="ai-tab" data-ai-tab="stock">Stock intelligent</button></div>';
-  html+='<section id="aiDashboard"><div class="grid ai-stats"><div class="stat"><small>CA aujourd’hui</small><strong>'+money(revenue)+'</strong><em>D’après les ventes enregistrées</em></div><div class="stat"><small>Commandes actives</small><strong>'+activeOrders.length+'</strong><em>À préparer ou servir</em></div><div class="stat"><small>Caméras déclarées</small><strong>'+cameras.length+'</strong><em>Flux vidéo non vérifié</em></div><div class="stat"><small>Alertes stock</small><strong>'+lowStock.length+'</strong><em>Seuil minimum atteint</em></div><div class="stat"><small>وجبات تم تسليمها اليوم</small><strong>'+outputTotals.meals+'</strong><em>حسب الطلبات المسلّمة</em></div><div class="stat"><small>مشروبات تم تسليمها اليوم</small><strong>'+outputTotals.drinks+'</strong><em>حسب الطلبات المسلّمة</em></div></div>';
+  html+='<section id="aiDashboard"><div class="grid ai-stats"><div class="stat"><small>CA aujourd’hui</small><strong>'+money(revenue)+'</strong><em>D’après les ventes enregistrées</em></div><div class="stat"><small>Commandes actives</small><strong>'+activeOrders.length+'</strong><em>À préparer ou servir</em></div><div class="stat"><small>Caméras déclarées</small><strong>'+cameras.length+'</strong><em>Flux vidéo non vérifié</em></div><div class="stat"><small>Alertes stock</small><strong>'+lowStock.length+'</strong><em>Seuil minimum atteint</em></div><div class="stat menu-only"><small>وجبات تم تسليمها اليوم</small><strong>'+outputTotals.meals+'</strong><em>حسب الطلبات المسلّمة</em></div><div class="stat menu-only"><small>مشروبات تم تسليمها اليوم</small><strong>'+outputTotals.drinks+'</strong><em>حسب الطلبات المسلّمة</em></div></div>';
   html+='<div class="ai-two-col"><div class="panel"><h3>Heures d’activité</h3><span class="muted">Répartition des ventes par heure</span><div class="hour-chart">'+hourBars+'</div><p class="muted">Heure la plus active dans les ventes chargées : <b>'+String(peak).padStart(2,"0")+':00</b>. Ce graphique mesure les ventes, pas le passage physique des visiteurs.</p></div>';
   html+='<div class="panel"><h3>Analyse opérationnelle</h3><div class="insight-row"><b>File d’attente</b><small>'+activeOrders.length+' commandes actives à traiter</small></div><div class="insight-row"><b>Risque de rupture</b><small>'+lowStock.length+' produits au seuil ou en dessous</small></div><div class="insight-row"><b>Présence clients / staff</b><small>En attente du Gateway AI local et du flux vidéo.</small></div></div></div>';
-  html+='<div class="panel"><h3>Sorties cuisine & bar — aujourd’hui</h3><div class="grid"><div class="stat"><small>وجبات خارجة من المطبخ</small><strong>'+outputTotals.meals+'</strong><em>من الطلبات المسلّمة</em></div><div class="stat"><small>مشروبات خارجة من البار</small><strong>'+outputTotals.drinks+'</strong><em>من الطلبات المسلّمة</em></div></div><p class="muted">الأعداد تُحتسب من كميات المنتجات داخل الطلبات التي حالتها «Servie» أو «Terminée». العدّ بالكاميرا سيُضاف بعد تشغيل Gateway ومعايرة كاميرات المطبخ والبار.</p></div>';
+  html+='<div class="panel menu-only"><h3>Sorties cuisine & bar — aujourd’hui</h3><div class="grid"><div class="stat"><small>وجبات خارجة من المطبخ</small><strong>'+outputTotals.meals+'</strong><em>من الطلبات المسلّمة</em></div><div class="stat"><small>مشروبات خارجة من البار</small><strong>'+outputTotals.drinks+'</strong><em>من الطلبات المسلّمة</em></div></div><p class="muted">الأعداد تُحتسب من كميات المنتجات داخل الطلبات التي حالتها «Servie» أو «Terminée». العدّ بالكاميرا سيُضاف بعد تشغيل Gateway ومعايرة كاميرات المطبخ والبار.</p></div>';
   html+='<div class="panel ai-report"><div><h3>Rapport quotidien</h3><p>'+todaySales.length+' ventes · '+activeOrders.length+' commandes actives · '+lowStock.length+' alertes stock · Espèces : '+money(cash)+'</p></div><button class="primary" id="shareDailyReport">Partager le rapport</button></div></section>';
   html+='<section id="aiCameras" class="hidden"><div class="panel"><h3>Gateway local Bizora</h3><p class="muted">Enrôlez un mini-PC installé sur le même réseau que les caméras. Le jeton est affiché une seule fois : conservez-le dans le gestionnaire de secrets du Gateway et ne le partagez pas.</p><label>Nom du Gateway<input id="gatewayAgentName" maxlength="100" value="Gateway principal"></label><button type="button" class="primary" id="enrollGateway">Créer le jeton de connexion</button><pre id="gatewayEnrollOutput" class="gateway-result">Aucun Gateway enrôlé depuis cette session.</pre></div><div class="panel gateway-control"><div class="section-head"><div><h3>Contrôle du Gateway</h3><span class="muted">تقدر توقف أو تشغل معالجة الكاميرات، مع بقاء Gateway متصل بالسيرفر.</span></div><span id="gatewayStatusBadge" class="badge">Chargement…</span></div><label class="inline-form gateway-toggle"><input id="gatewayEnabled" type="checkbox"> <b>تشغيل معالجة الكاميرات</b></label><p id="gatewayStatusText" class="muted">جاري التحقق من الحالة…</p><small class="muted">ملي توقف المعالجة، Gateway كيبقى كيرسل heartbeat للسيرفر باش تبقى الحالة متصلة؛ غير فحص الكاميرات وإرسال الأحداث كيتوقف. ما كيتحيد حتى إعداد أو تسجيل.</small></div><div class="panel"><h3>Gestion des caméras</h3><div class="pairing-steps"><div><b>1 · Marque</b><small>Dahua ou Hikvision</small></div><div><b>2 · Identification</b><small>Scanner QR ou saisir le numéro</small></div><div><b>3 · Réseau</b><small>Découverte via Gateway</small></div></div><form id="cameraForm" class="form-grid"><label>Nom<input name="name" required placeholder="Entrée principale"></label><label>Zone<input name="zone" required placeholder="Entrée / caisse / cuisine"></label><label>Marque<select name="brand"><option value="Dahua">Dahua</option><option value="Hikvision">Hikvision</option><option value="Autre">Autre</option></select></label><label>Appareil<select name="type"><option value="ip">Caméra IP</option><option value="dvr">DVR</option><option value="nvr">NVR</option></select></label><label>Numéro de série / UID<input id="cameraSerial" name="serial" maxlength="160" placeholder="Numéro lu depuis le QR"></label><label>Méthode<select name="method"><option value="qr">QR Code</option><option value="manual">Saisie manuelle</option></select></label><button class="primary">Enregistrer l’appareil</button></form><div class="pairing-actions"><button type="button" class="secondary" id="startQrScan">Scanner QR avec la caméra du téléphone</button><button type="button" class="secondary" id="stopQrScan" disabled>Arrêter le scan</button><button type="button" class="secondary" id="discoverCameras">Rechercher sur le réseau (Gateway)</button></div><video id="cameraQrVideo" class="qr-video hidden" playsinline muted></video><p id="cameraPairMsg" class="notice">Le QR sert à identifier l’appareil. Ne scannez pas de QR contenant un mot de passe Wi-Fi et ne saisissez aucun mot de passe caméra ici.</p><div id="gatewayResult" class="gateway-result">Gateway réseau : pas encore configuré.</div></div><div class="camera-grid">'+(cameraCards||'<div class="empty panel">Aucune caméra ajoutée.</div>')+'</div><div class="panel"><h3>Configuration indépendante</h3><p class="muted">Activez uniquement les fonctions nécessaires sur chaque caméra. Les réglages sont enregistrés séparément. Les fonctions sont des missions assignées à cette caméra. Elles ne démarrent qu’après connexion du Gateway et du moteur AI local. La reconnaissance faciale des employés exige information, consentement valable et conformité CNDP ; aucun visage ne doit être enrôlé sans autorisation. Les commandes POS peuvent alimenter les statistiques de repas et boissons.</p></div></section>';
   html+='<section id="aiCash" class="hidden"><div class="grid"><div class="stat"><small>Espèces aujourd’hui</small><strong>'+money(cash)+'</strong></div><div class="stat"><small>Autres paiements</small><strong>'+money(other)+'</strong></div><div class="stat"><small>Ventes</small><strong>'+todaySales.length+'</strong></div><div class="stat"><small>Écart de caisse</small><strong>—</strong></div></div><div class="panel"><h3>Vérification de caisse</h3><p class="muted">Comparez les espèces comptées avec les espèces théoriques enregistrées.</p><form id="cashCheckForm" class="inline-form"><label>Espèces comptées (MAD)<input name="counted" type="number" min="0" step=".01" required></label><button class="primary">Calculer l’écart</button></form><div id="cashCheckResult" class="notice"></div><p class="muted">Cette vérification compare les montants saisis. Elle ne détecte pas automatiquement une fraude.</p></div></section>';
@@ -724,9 +732,12 @@ async function settingsPage(){
   ]);
   if(error){toast("Erreur paramètres : "+error.message);return}
   const v=s||{is_enabled:false,whatsapp_number:"",send_time:"21:00:00",timezone:"Africa/Casablanca",include_sales:true,include_products:true,include_stock:true,include_orders:true,include_profit:false,whatsapp_opt_in:false};
+  const bizTypes=[["restaurant","مطعم"],["cafe","مقهى"],["clothing","محل ملابس"],["shoes","محل أحذية"],["supermarket","سوبرماركت"],["small_shop","محل تجاري صغير"]];
+  const curType=(orgs.find(o=>o.id===orgId)||{}).business_type||"restaurant";
+  const businessPanel=["owner","manager"].includes(currentRole)?`<div class="panel"><div class="section-head"><div><h3>نوع النشاط</h3><span class="muted">كيتحكم فالصفحات اللي كتبان: الطاولات والمطبخ كيبانو غير للمطاعم والمقاهي.</span></div></div><form id="businessTypeForm" class="inline-form"><select name="business_type">${bizTypes.map(([v,l])=>`<option value="${v}" ${v===curType?"selected":""}>${l}</option>`).join("")}</select><button class="primary">حفظ</button></form><p id="businessTypeMsg" class="muted" aria-live="polite"></p></div>`:"";
   const canRunSalesTest=orgs.some(o=>o.id===orgId&&o.role==="owner");
   const salesTestPanel=canRunSalesTest?`<div class="panel" style="margin-top:16px"><div class="section-head"><div><h3>اختبار تقرير المبيعات فقط</h3><span class="muted">إرسال تجريبي مستقل، بدون الكاميرات وبدون تفعيل التقرير اليومي.</span></div><span class="badge">اختبار يدوي</span></div><form id="salesTestForm" class="form-grid"><label>رقم WhatsApp الشخصي بصيغة دولية<input name="recipient" type="tel" inputmode="tel" placeholder="+2126XXXXXXXX" required maxlength="20"><small class="muted">الرقم يستعمل لهذا الاختبار فقط ولا يتم حفظه.</small></label><button class="primary" type="submit">معاينة تقرير المبيعات</button></form><div id="salesTestPreview" class="muted" aria-live="polite"></div></div>`:"";
-  $("content").innerHTML=`
+  $("content").innerHTML=`${businessPanel}
     <div class="panel">
       <div class="section-head"><div><h3>Rapport quotidien sur WhatsApp</h3><span class="muted">حدد رقمك والساعة والتفاصيل اللي بغيتي توصلك كل نهار.</span></div><span class="badge">WhatsApp Business</span></div>
       <form id="dailyReportSettings" class="form-grid">
@@ -749,6 +760,7 @@ async function settingsPage(){
     </div>
     <div class="panel"><h3>آخر التقارير</h3>${(deliveries||[]).length?(deliveries||[]).map(x=>`<div class="row"><span>${esc(x.report_date)} — ${esc(x.recipient)}</span><span class="badge">${x.status==="sent"?"تم الإرسال":x.status==="failed"?"فشل الإرسال":"قيد المعالجة"}</span></div>${x.error_message?`<small class="muted">${esc(x.error_message)}</small>`:""}`).join(""):"<p class='muted'>مازال ما تسيفط حتى تقرير.</p>"}</div>${salesTestPanel}`;
   window.BizoraI18n?.mountSettings();
+  if($("businessTypeForm"))$("businessTypeForm").onsubmit=async e=>{e.preventDefault();const type=new FormData(e.target).get("business_type");const {error}=await sb.rpc("bizora_set_business_type",{p_org:orgId,p_type:type});if(error){$("businessTypeMsg").textContent=error.message;return}const o=orgs.find(x=>x.id===orgId);if(o)o.business_type=type;applyBusinessProfile();$("businessTypeMsg").textContent="تم حفظ نوع النشاط";toast("تم حفظ نوع النشاط")};
   if(canRunSalesTest){
     let testRecipient="";
     $("salesTestForm").onsubmit=async e=>{

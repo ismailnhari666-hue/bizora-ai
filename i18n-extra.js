@@ -191,6 +191,9 @@ const A=[
 ["احتفظ بهذا الكود في مكان آمن. لن يظهر كاملاً مرة أخرى بعد إغلاق هذه النافذة","Conservez ce code en lieu sûr. Il ne sera plus affiché en entier après la fermeture de cette fenêtre","Keep this code somewhere safe. It will not be shown in full again after you close this window"],
 ["أسماء الطاولات (مثال","Noms des tables (exemple","Table names (example"],
 ["المغرب","Maroc","Morocco"],
+["لائحة المنتجات","Liste des produits","Product list"],
+["كيتحكم فالصفحات اللي كتبان: الطاولات والمطبخ كيبانو غير للمطاعم والمقاهي.","Détermine les pages affichées : tables et cuisine n’apparaissent que pour les restaurants et cafés.","Controls which pages are shown: tables and kitchen only appear for restaurants and cafés."],
+["تم حفظ نوع النشاط","Type d’activité enregistré","Business type saved"],
 ["لا تشارك هذا الكود مع العمال أو أي شخص غير مخوّل","Ne partagez ce code ni avec les employés ni avec une personne non autorisée","Do not share this code with workers or anyone unauthorized"]
 ];
 const F=[
@@ -349,6 +352,8 @@ const F=[
 ["Gateway créé","تم إنشاء Gateway","Gateway created"],
 ["Gateway réseau","Gateway الشبكة","Network Gateway"],
 ["Produits & stock","المنتجات والمخزون","Products & stock"],
+["Comptoir","الكاونتر","Counter"],
+["Au comptoir","عند الكاونتر","At the counter"],
 ["Aucune vente","لا توجد مبيعات","No sales"]
 ];
 function build(){
