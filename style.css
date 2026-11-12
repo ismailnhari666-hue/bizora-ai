@@ -234,3 +234,8 @@ body.worker-mode .worker-head{margin-top:8px}
 
 /* Business-type visibility: retail shops hide table and kitchen/bar features */
 body.no-tables .table-only,body.no-menu .menu-only{display:none!important}
+
+.auth-hint{margin:2px 0 12px;color:#5d687b;font-size:14px;text-align:center;line-height:1.7}
+.auth-tabs .tab{flex:1}
+.worker-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 16px}.worker-summary div{background:#fff;border:1px solid #e4e9f1;border-radius:14px;padding:12px 14px}.worker-summary small{display:block;color:#5d687b;font-size:13px}.worker-summary strong{display:block;font-size:20px;margin-top:2px}
+@media(max-width:520px){.worker-summary{grid-template-columns:1fr 1fr 1fr}.worker-summary strong{font-size:16px}.worker-summary div{padding:10px}}

@@ -26,7 +26,8 @@ function toast(msg){$("toast").textContent=msg;$("toast").style.display="block";
 function authMessage(msg){$("authMsg").textContent=msg}
 function setAuthMode(next){
  mode=next;
- document.querySelectorAll(".tab[data-mode]").forEach(button=>button.classList.toggle("active",button.dataset.mode===next));
+ const ownerSide=["owner-code","owner-signup","owner-recovery"].includes(next);
+ document.querySelectorAll(".tab[data-mode]").forEach(button=>button.classList.toggle("active",button.dataset.mode===(ownerSide?"owner-code":"worker-login")));
  const ownerCode=next==="owner-code";
  const ownerSignup=next==="owner-signup";
  $("emailField").classList.toggle("hidden",ownerCode);
@@ -39,11 +40,15 @@ function setAuthMode(next){
  $("ownerCode").required=ownerCode;
  $("authSubmit").textContent=ownerCode?"دخول الإدارة":ownerSignup?"إنشاء حساب صاحب المحل":next==="owner-recovery"?"استرجاع كود الإدارة":"دخول واجهة العمل";
  $("ownerRecoveryToggle").classList.toggle("hidden",!ownerCode);
+ $("authHint").textContent=ownerCode?"للإدارة الكاملة: المنتجات والمبيعات والكاميرات والعمال والتقارير":ownerSignup?"أنشئ حساب صاحب محل جديد":next==="owner-recovery"?"استرجاع كود الإدارة":"للعمال: تسجيل الطلبات ومشاهدة مبيعاتك أنت فقط";
+ $("ownerSignupToggle").classList.toggle("hidden",!ownerSide);
+ $("ownerSignupToggle").textContent=ownerCode?"صاحب محل جديد؟ أنشئ حسابك":"رجوع لدخول الإدارة";
  authMessage("");
 }
 document.querySelectorAll(".tab[data-mode]").forEach(button=>button.onclick=()=>setAuthMode(button.dataset.mode));
 setAuthMode("owner-code");
 $("ownerRecoveryToggle").onclick=()=>setAuthMode("owner-recovery");
+$("ownerSignupToggle").onclick=()=>setAuthMode(mode==="owner-code"?"owner-signup":"owner-code");
 
 function showOwnerCodeModal(code){
  $("ownerCodeValue").textContent=String(code||"");
@@ -253,12 +258,12 @@ async function workerOrderInterface(){
  if(workerRefreshTimer){clearInterval(workerRefreshTimer);workerRefreshTimer=null;}
  const lang=window.BizoraI18n?.language||"ar";
  const words={
-  ar:{title:"واجهة العمل",sub:"اختار المنتجات وسجل الطلبات وتابع حالتها",food:"المأكولات",drink:"المشروبات",search:"ابحث عن منتج…",cart:"الطلب الحالي",empty:"مازال ما ضفتي حتى منتج",qty:"الكمية",total:"المجموع",confirm:"تأكيد الطلب",clear:"مسح الطلب",add:"إضافة",table:"رقم الطاولة",choose:"اختار الطاولة",orders:"تتبع الطلبات",refresh:"تحديث",noOrders:"لا توجد طلبات حالياً",logout:"تسجيل الخروج",productsEmpty:"ما كاين حتى منتج نشط. تواصل مع صاحب المحل.",orderDone:"تم تسجيل الطلب بنجاح",status:"الحالة",currency:"درهم"},
-  fr:{title:"Espace de travail",sub:"Ajoutez des articles, créez et suivez les commandes",food:"Plats",drink:"Boissons",search:"Rechercher un produit…",cart:"Commande actuelle",empty:"Aucun article ajouté",qty:"Qté",total:"Total",confirm:"Valider la commande",clear:"Vider",add:"Ajouter",table:"Table",choose:"Choisir une table",orders:"Suivi des commandes",refresh:"Actualiser",noOrders:"Aucune commande pour le moment",logout:"Déconnexion",productsEmpty:"Aucun produit actif. Contactez le propriétaire.",orderDone:"Commande enregistrée",status:"Statut",currency:"MAD"},
-  en:{title:"Work area",sub:"Add products, create orders and track their status",food:"Food",drink:"Drinks",search:"Search products…",cart:"Current order",empty:"No items added",qty:"Qty",total:"Total",confirm:"Place order",clear:"Clear",add:"Add",table:"Table",choose:"Choose a table",orders:"Order tracking",refresh:"Refresh",noOrders:"No orders yet",logout:"Sign out",productsEmpty:"No active products. Contact the owner.",orderDone:"Order saved successfully",status:"Status",currency:"MAD"},
-  es:{title:"Área de trabajo",sub:"Añade productos, crea pedidos y sigue su estado",food:"Comida",drink:"Bebidas",search:"Buscar producto…",cart:"Pedido actual",empty:"No hay artículos",qty:"Cant.",total:"Total",confirm:"Crear pedido",clear:"Vaciar",add:"Añadir",table:"Mesa",choose:"Elegir mesa",orders:"Seguimiento de pedidos",refresh:"Actualizar",noOrders:"Todavía no hay pedidos",logout:"Salir",productsEmpty:"No hay productos activos. Contacta con el propietario.",orderDone:"Pedido guardado",status:"Estado",currency:"MAD"},
-  de:{title:"Arbeitsbereich",sub:"Produkte hinzufügen, Bestellungen erstellen und verfolgen",food:"Speisen",drink:"Getränke",search:"Produkt suchen…",cart:"Aktuelle Bestellung",empty:"Keine Artikel hinzugefügt",qty:"Menge",total:"Gesamt",confirm:"Bestellung aufgeben",clear:"Leeren",add:"Hinzufügen",table:"Tisch",choose:"Tisch auswählen",orders:"Bestellverfolgung",refresh:"Aktualisieren",noOrders:"Noch keine Bestellungen",logout:"Abmelden",productsEmpty:"Keine aktiven Produkte. Bitte den Inhaber kontaktieren.",orderDone:"Bestellung gespeichert",status:"Status",currency:"MAD"},
-  "zh-CN":{title:"工作界面",sub:"添加商品、创建订单并跟踪状态",food:"食品",drink:"饮料",search:"搜索商品…",cart:"当前订单",empty:"尚未添加商品",qty:"数量",total:"总计",confirm:"提交订单",clear:"清空",add:"添加",table:"桌号",choose:"选择桌号",orders:"订单跟踪",refresh:"刷新",noOrders:"暂无订单",logout:"退出",productsEmpty:"没有启用的商品，请联系店主。",orderDone:"订单已成功保存",status:"状态",currency:"MAD"}
+  ar:{title:"لوحة المبيعات",sub:"سجّل مبيعاتك وتابع حصيلتك اليوم",food:"المأكولات",drink:"المشروبات",search:"ابحث عن منتج…",cart:"الطلب الحالي",empty:"مازال ما ضفتي حتى منتج",qty:"الكمية",total:"المجموع",confirm:"تأكيد الطلب",clear:"مسح الطلب",add:"إضافة",table:"رقم الطاولة",choose:"اختار الطاولة",orders:"تتبع الطلبات",refresh:"تحديث",noOrders:"لا توجد طلبات حالياً",logout:"تسجيل الخروج",productsEmpty:"ما كاين حتى منتج نشط. تواصل مع صاحب المحل.",orderDone:"تم تسجيل الطلب بنجاح",status:"الحالة",currency:"درهم"},
+  fr:{title:"Tableau des ventes",sub:"Enregistrez vos ventes et suivez votre journée",food:"Plats",drink:"Boissons",search:"Rechercher un produit…",cart:"Commande actuelle",empty:"Aucun article ajouté",qty:"Qté",total:"Total",confirm:"Valider la commande",clear:"Vider",add:"Ajouter",table:"Table",choose:"Choisir une table",orders:"Suivi des commandes",refresh:"Actualiser",noOrders:"Aucune commande pour le moment",logout:"Déconnexion",productsEmpty:"Aucun produit actif. Contactez le propriétaire.",orderDone:"Commande enregistrée",status:"Statut",currency:"MAD"},
+  en:{title:"Sales board",sub:"Record your sales and follow your day",food:"Food",drink:"Drinks",search:"Search products…",cart:"Current order",empty:"No items added",qty:"Qty",total:"Total",confirm:"Place order",clear:"Clear",add:"Add",table:"Table",choose:"Choose a table",orders:"Order tracking",refresh:"Refresh",noOrders:"No orders yet",logout:"Sign out",productsEmpty:"No active products. Contact the owner.",orderDone:"Order saved successfully",status:"Status",currency:"MAD"},
+  es:{title:"Panel de ventas",sub:"Registra tus ventas y sigue tu jornada",food:"Comida",drink:"Bebidas",search:"Buscar producto…",cart:"Pedido actual",empty:"No hay artículos",qty:"Cant.",total:"Total",confirm:"Crear pedido",clear:"Vaciar",add:"Añadir",table:"Mesa",choose:"Elegir mesa",orders:"Seguimiento de pedidos",refresh:"Actualizar",noOrders:"Todavía no hay pedidos",logout:"Salir",productsEmpty:"No hay productos activos. Contacta con el propietario.",orderDone:"Pedido guardado",status:"Estado",currency:"MAD"},
+  de:{title:"Verkaufsübersicht",sub:"Verkäufe erfassen und den Tag verfolgen",food:"Speisen",drink:"Getränke",search:"Produkt suchen…",cart:"Aktuelle Bestellung",empty:"Keine Artikel hinzugefügt",qty:"Menge",total:"Gesamt",confirm:"Bestellung aufgeben",clear:"Leeren",add:"Hinzufügen",table:"Tisch",choose:"Tisch auswählen",orders:"Bestellverfolgung",refresh:"Aktualisieren",noOrders:"Noch keine Bestellungen",logout:"Abmelden",productsEmpty:"Keine aktiven Produkte. Bitte den Inhaber kontaktieren.",orderDone:"Bestellung gespeichert",status:"Status",currency:"MAD"},
+  "zh-CN":{title:"销售面板",sub:"记录销售并查看今日业绩",food:"食品",drink:"饮料",search:"搜索商品…",cart:"当前订单",empty:"尚未添加商品",qty:"数量",total:"总计",confirm:"提交订单",clear:"清空",add:"添加",table:"桌号",choose:"选择桌号",orders:"订单跟踪",refresh:"刷新",noOrders:"暂无订单",logout:"退出",productsEmpty:"没有启用的商品，请联系店主。",orderDone:"订单已成功保存",status:"状态",currency:"MAD"}
  };
  const t=words[lang]||words.ar;
  const statusValues=["pending","preparing","ready","served","completed","cancelled"];
@@ -272,7 +277,7 @@ async function workerOrderInterface(){
  };
  const [productResult,ordersResult]=await Promise.all([
   sb.from("products").select("id,name,unit_price,item_type,category").eq("organization_id",orgId).eq("is_active",true).order("name"),
-  sb.from("orders").select("id,status,table_label,total,created_at,order_items(product_name,quantity)").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(25)
+  sb.from("orders").select("id,status,table_label,total,created_at,order_items(product_name,quantity)").eq("organization_id",orgId).eq("created_by",user.id).order("created_at",{ascending:false}).limit(100)
  ]);
  if(productResult.error){$("content").innerHTML='<div class="panel notice">'+esc(productResult.error.message)+'</div>';return;}
  const menu=(productResult.data||[]).filter(p=>p.item_type==="food"||p.item_type==="drink");
@@ -282,11 +287,12 @@ async function workerOrderInterface(){
  $("content").innerHTML=
   '<div class="worker-screen">'+
    '<div class="worker-head"><div><span class="worker-kicker">'+esc(t.sub)+'</span><h2>'+esc(t.title)+'</h2></div><div class="worker-head-actions"><span class="worker-preview-badge">4 × 4</span><button id="workerLogout" class="worker-logout">'+esc(t.logout)+'</button></div></div>'+
+   '<div class="worker-summary" id="workerSummary"></div>'+
    '<div class="worker-layout"><section class="worker-menu"><div class="worker-toolbar"><div class="worker-tabs menu-only"><button class="active" data-filter="food">🍽 '+esc(t.food)+'</button><button data-filter="drink">🥤 '+esc(t.drink)+'</button></div><input id="workerSearch" type="search" placeholder="'+esc(t.search)+'"></div><div id="workerProducts" class="worker-products"></div></section>'+
    '<aside class="worker-order"><div class="worker-order-head"><div><h3>'+esc(t.cart)+'</h3><small><span id="workerCount">0</span> '+esc(t.qty)+'</small></div><button id="workerClear" class="ghost">'+esc(t.clear)+'</button></div>'+
    '<label class="worker-table-label table-only">'+esc(t.table)+'<select id="workerTable" required><option value="">'+esc(t.choose)+'</option>'+Array.from({length:12},(_,i)=>'<option value="Table '+(i+1)+'">'+(i+1)+'</option>').join("")+'</select></label>'+
    '<div id="workerCart" class="worker-cart"></div><div class="worker-total"><span>'+esc(t.total)+'</span><strong id="workerTotal">'+money(0)+'</strong></div><button id="workerSend" class="primary worker-submit">'+esc(t.confirm)+'</button></aside></div>'+
-   '<section class="panel worker-orders-panel"><div class="worker-orders-head"><div><h3>'+esc(t.orders)+'</h3><small class="muted">آخر 25 طلباً داخل المحل</small></div><button id="workerRefreshOrders" class="secondary">'+esc(t.refresh)+'</button></div><div id="workerOrders" class="worker-order-list"></div></section>'+
+   '<section class="panel worker-orders-panel"><div class="worker-orders-head"><div><h3>'+esc(t.orders)+'</h3><small class="muted">طلباتك أنت فقط</small></div><button id="workerRefreshOrders" class="secondary">'+esc(t.refresh)+'</button></div><div id="workerOrders" class="worker-order-list"></div></section>'+
   '</div>';
  $("workerLogout").onclick=async()=>{clearBizoraAuthState();await sb.auth.signOut();location.reload();};
  const renderProducts=()=>{
@@ -315,10 +321,16 @@ async function workerOrderInterface(){
   $("workerCart").querySelectorAll("[data-dec]").forEach(button=>button.onclick=()=>{const item=workerCart.find(x=>x.id===button.dataset.dec);if(item){item.qty--;if(item.qty<=0)workerCart=workerCart.filter(x=>x.id!==item.id);}renderCart();});
  };
  const refreshOrders=async()=>{
-  const {data,error}=await sb.from("orders").select("id,status,table_label,total,created_at,order_items(product_name,quantity)").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(25);
+  const {data,error}=await sb.from("orders").select("id,status,table_label,total,created_at,order_items(product_name,quantity)").eq("organization_id",orgId).eq("created_by",user.id).order("created_at",{ascending:false}).limit(100);
   if(error){$("workerOrders").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
   const rows=data||[];
-  $("workerOrders").innerHTML=rows.length?rows.map(order=>
+  const dayStart=new Date();dayStart.setHours(0,0,0,0);
+  const mine=rows.filter(o=>new Date(o.created_at)>=dayStart&&o.status!=="cancelled");
+  const pieces=mine.reduce((s,o)=>s+(o.order_items||[]).reduce((n,i)=>n+Number(i.quantity||0),0),0);
+  const total=mine.reduce((s,o)=>s+Number(o.total||0),0);
+  const sl=({ar:["مبيعاتي اليوم","عدد الطلبات","القطع المباعة"],fr:["Mes ventes aujourd’hui","Commandes","Articles vendus"],en:["My sales today","Orders","Items sold"],es:["Mis ventas hoy","Pedidos","Artículos vendidos"],de:["Meine Verkäufe heute","Bestellungen","Verkaufte Artikel"],"zh-CN":["今日销售","订单数","售出件数"]})[lang]||["مبيعاتي اليوم","عدد الطلبات","القطع المباعة"];
+  $("workerSummary").innerHTML='<div><small>'+esc(sl[0])+'</small><strong>'+money(total)+'</strong></div><div><small>'+esc(sl[1])+'</small><strong>'+mine.length+'</strong></div><div><small>'+esc(sl[2])+'</small><strong>'+pieces+'</strong></div>';
+  $("workerOrders").innerHTML=rows.length?rows.slice(0,25).map(order=>
    '<article class="worker-order-card"><div class="worker-order-card-head"><b>#'+order.id.slice(0,8).toUpperCase()+'</b><span class="worker-status">'+esc(statusText(order.status))+'</span></div>'+
    '<small class="muted">'+esc(order.table_label||"—")+' • '+new Date(order.created_at).toLocaleTimeString(window.BizoraI18n?.locale||"ar-MA",{hour:"2-digit",minute:"2-digit"})+'</small>'+
    '<ul>'+(order.order_items||[]).map(item=>'<li>'+esc(item.product_name)+' × '+Number(item.quantity)+'</li>').join("")+'</ul>'+

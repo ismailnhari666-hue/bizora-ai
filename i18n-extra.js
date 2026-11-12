@@ -4,6 +4,13 @@
    Spanish, German and Chinese fall back to English for any phrase they do not already translate. */
 (()=>{
 const A=[
+["للإدارة الكاملة: المنتجات والمبيعات والكاميرات والعمال والتقارير","Gestion complète : produits, ventes, caméras, employés et rapports","Full management: products, sales, cameras, workers and reports"],
+["أنشئ حساب صاحب محل جديد","Créer un nouveau compte propriétaire","Create a new shop owner account"],
+["استرجاع كود الإدارة","Récupérer le code d’administration","Recover the admin code"],
+["للعمال: تسجيل الطلبات ومشاهدة مبيعاتك أنت فقط","Employés : enregistrez des commandes et voyez uniquement vos ventes","Workers: record orders and see only your own sales"],
+["صاحب محل جديد؟ أنشئ حسابك","Nouveau propriétaire ? Créez votre compte","New shop owner? Create your account"],
+["رجوع لدخول الإدارة","Retour à l’accès administration","Back to admin sign-in"],
+["طلباتك أنت فقط","Uniquement vos commandes","Your orders only"],
 ["تم نسخ كود الإدارة","Code d’administration copié","Admin code copied"],
 ["تعذر النسخ تلقائياً. احتفظ بالكود يدوياً","Copie automatique impossible. Conservez le code manuellement","Automatic copy failed. Keep the code manually"],
 ["جاري التحقق","Vérification en cours","Verifying"],
