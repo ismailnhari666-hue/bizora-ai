@@ -19,6 +19,16 @@ const BUSINESS_PROFILES={
   supermarket:{tables:false,menu:false},small_shop:{tables:false,menu:false}
 };
 const bizProfile=()=>BUSINESS_PROFILES[(orgs.find(o=>o.id===orgId)||{}).business_type]||BUSINESS_PROFILES.restaurant;
+const MODULES=[
+ {key:"products",icon:"▦",name:["المنتجات والمخزون","Produits & stock","Products & stock"],desc:["لائحة المنتجات والأثمنة والمخزون","Liste des produits, prix et stock","Product list, prices and stock"]},
+ {key:"sales",icon:"↗",name:["المبيعات","Ventes","Sales"],desc:["تسجيل المبيعات وسجلها","Enregistrer les ventes et leur historique","Record sales and see their history"]},
+ {key:"orders",icon:"☷",name:["الطلبات","Commandes","Orders"],desc:["طلبات الزبناء وحالتها","Commandes clients et leur statut","Customer orders and their status"]},
+ {key:"reports",icon:"▤",name:["التقارير","Rapports","Reports"],desc:["تقارير وإحصائيات المبيعات","Rapports et statistiques de ventes","Sales reports and statistics"]},
+ {key:"finance",icon:"¤",name:["المالية","Finance","Finance"],desc:["الربح والمصاريف وجرد الصندوق","Bénéfices, charges et caisse","Profit, expenses and cash count"]},
+ {key:"users",icon:"♙",name:["المستخدمون","Utilisateurs","Users"],desc:["حسابات العمال وكود الإدارة","Comptes employés et code d’administration","Worker accounts and admin code"]}
+];
+const modOn=key=>((orgs.find(o=>o.id===orgId)||{}).enabled_modules||{})[key]!==false;
+function applyModules(){MODULES.forEach(m=>document.body.classList.toggle("mod-off-"+m.key,!modOn(m.key)));}
 function applyBusinessProfile(){const pr=bizProfile();document.body.classList.toggle("no-tables",!pr.tables);document.body.classList.toggle("no-menu",!pr.menu);}
 const money=n=>new Intl.NumberFormat(window.BizoraI18n?.locale||"fr-MA",{style:"currency",currency:"MAD"}).format(Number(n||0));
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -127,7 +137,7 @@ async function accessRequest(body){
 }
 async function loadOrganizations(preselect){
  const {data,error}=await sb.from("memberships")
-  .select("organization_id,role,is_active,organizations(id,name,currency,timezone,business_type)")
+  .select("organization_id,role,is_active,organizations(id,name,currency,timezone,business_type,enabled_modules)")
   .eq("user_id",user.id);
  if(error){toast(error.message);return;}
  const memberships=(data||[]).filter(row=>row.organizations);
@@ -143,7 +153,6 @@ async function loadOrganizations(preselect){
   currentRole=null;orgId=null;document.body.classList.remove("worker-mode","no-tables","no-menu");
   $("orgSetup").classList.remove("hidden");$("content").innerHTML="";
   $("orgSelect").innerHTML="";
-  $("navUsers").classList.add("hidden");
   return;
  }
  orgId=(preselect&&orgs.some(o=>o.id===preselect)?preselect:orgs[0].id);
@@ -151,12 +160,11 @@ async function loadOrganizations(preselect){
  $("orgSelect").value=orgId;
  const activeOrg=orgs.find(o=>o.id===orgId);
  currentRole=activeOrg.role;
- applyBusinessProfile();
+ applyBusinessProfile();applyModules();
  const workerOnly=["staff","cashier","manager","employee","worker"].includes(currentRole);
  document.body.classList.toggle("worker-mode",workerOnly);
  $("orgSelect").closest(".orgbox")?.classList.toggle("hidden",workerOnly);
  $("orgSetup").classList.add("hidden");
- $("navUsers").classList.toggle("hidden",currentRole!=="owner");
  if(currentRole==="owner"){
   const unlocked=localStorage.getItem(ownerUnlockKey(orgId,user.id))==="1";
   const recovering=localStorage.getItem(ownerRecoveryKey(user.id))==="1";
@@ -197,8 +205,12 @@ async function loadOrganizations(preselect){
  }
  await loadPage(currentPage==="worker-ui"?"overview":currentPage);
 }
-function heading(title){$("pageTitle").textContent=title;document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===currentPage))}
-async function loadPage(page){if(!orgId)return;if(document.body.classList.contains("worker-mode")&&page!=="worker-ui")page="worker-ui";if(page==="users"&&currentRole!=="owner")page="overview";currentPage=page;document.querySelector(".topbar")?.classList.toggle("hidden",page==="overview"||page==="worker-ui");const names={overview:"لوحة القيادة",products:"المنتجات والمخزون",sales:"المبيعات",orders:"الطلبات",users:"المستخدمون",cameras:"الكاميرات",reports:"التقارير",finance:"المالية",settings:"الإعدادات"};heading(names[page]||"Vue générale");if(page==="overview")return overview();if(page==="products")return productPage();if(page==="sales")return salesPage();if(page==="orders")return ordersPage();if(page==="users")return usersPage();if(page==="cameras")return camerasPage();if(page==="reports")return reportsPage();if(page==="finance")return financePage();if(page==="settings")return settingsPage();if(page==="worker-ui")return workerOrderInterface()}
+function heading(title){$("pageTitle").textContent=title;const navPage=MODULES.some(m=>m.key===currentPage)?"settings":currentPage;document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===navPage))}
+async function loadPage(page){if(!orgId)return;if(document.body.classList.contains("worker-mode")&&page!=="worker-ui")page="worker-ui";if(page==="users"&&currentRole!=="owner")page="overview";if(MODULES.some(m=>m.key===page)&&!modOn(page)){toast("هاد الوحدة مغلقة. فعّلها من الإعدادات");page="settings";}currentPage=page;document.querySelector(".topbar")?.classList.toggle("hidden",page==="overview"||page==="worker-ui");const names={overview:"لوحة القيادة",products:"المنتجات والمخزون",sales:"المبيعات",orders:"الطلبات",users:"المستخدمون",cameras:"الكاميرات",reports:"التقارير",finance:"المالية",settings:"الإعدادات"};heading(names[page]||"Vue générale");const pages={overview,products:productPage,sales:salesPage,orders:ordersPage,users:usersPage,cameras:camerasPage,reports:reportsPage,finance:financePage,settings:settingsPage,"worker-ui":workerOrderInterface};
+const run=pages[page];if(!run)return;
+const result=await run();
+if(MODULES.some(m=>m.key===page)&&$("content")){const back=document.createElement("button");back.type="button";back.className="ghost back-settings";back.textContent="← "+({ar:"الإعدادات",fr:"Paramètres",en:"Settings"}[window.BizoraI18n?.language]||"Settings");back.onclick=()=>loadPage("settings");$("content").prepend(back);}
+return result}
 async function overview(){
   const lang=window.BizoraI18n?.language||"ar";
   const tr=(ar,fr,en,es,de,zh)=>({ar,fr,en,es,de,"zh-CN":zh})[lang]||ar;
@@ -265,7 +277,7 @@ async function loadProfitStrip(){
  try{
   const {today}=finDates();
   const {data,error}=await sb.rpc("bizora_profit_summary",{p_org:orgId,p_from:today,p_to:today});
-  if(error||!data||currentPage!=="overview"||!$("content"))return;
+  if(!modOn("finance")||error||!data||currentPage!=="overview"||!$("content"))return;
   const lang=window.BizoraI18n?.language||"ar";
   const T=(ar,fr,en)=>({ar,fr,en})[lang]||en;
   const el=document.createElement("section");
@@ -850,7 +862,9 @@ async function settingsPage(){
   const businessPanel=["owner","manager"].includes(currentRole)?`<div class="panel"><div class="section-head"><div><h3>نوع النشاط</h3><span class="muted">كيتحكم فالصفحات اللي كتبان: الطاولات والمطبخ كيبانو غير للمطاعم والمقاهي.</span></div></div><form id="businessTypeForm" class="inline-form"><select name="business_type">${bizTypes.map(([v,l])=>`<option value="${v}" ${v===curType?"selected":""}>${l}</option>`).join("")}</select><button class="primary">حفظ</button></form><p id="businessTypeMsg" class="muted" aria-live="polite"></p></div>`:"";
   const canRunSalesTest=orgs.some(o=>o.id===orgId&&o.role==="owner");
   const salesTestPanel=canRunSalesTest?`<div class="panel" style="margin-top:16px"><div class="section-head"><div><h3>اختبار تقرير المبيعات فقط</h3><span class="muted">إرسال تجريبي مستقل، بدون الكاميرات وبدون تفعيل التقرير اليومي.</span></div><span class="badge">اختبار يدوي</span></div><form id="salesTestForm" class="form-grid"><label>رقم WhatsApp الشخصي بصيغة دولية<input name="recipient" type="tel" inputmode="tel" placeholder="+2126XXXXXXXX" required maxlength="20"><small class="muted">الرقم يستعمل لهذا الاختبار فقط ولا يتم حفظه.</small></label><button class="primary" type="submit">معاينة تقرير المبيعات</button></form><div id="salesTestPreview" class="muted" aria-live="polite"></div></div>`:"";
-  $("content").innerHTML=`${businessPanel}
+  const ml=(lang=>({ar:0,fr:1}[lang]??2))(window.BizoraI18n?.language);
+  const modulesPanel=currentRole==="owner"?`<div class="panel"><div class="section-head"><div><h3>${["الوحدات","Modules","Modules"][ml]}</h3><span class="muted">${["شغّل أو سد كل وحدة. الوحدة المغلقة كتختفي من التطبيق.","Activez ou désactivez chaque module. Un module désactivé disparaît de l’application.","Turn each module on or off. A disabled module disappears from the app."][ml]}</span></div></div><div class="module-list">${MODULES.map(m=>`<div class="module-row" data-module-row="${m.key}"><span class="module-icon">${m.icon}</span><div class="module-text"><b>${esc(m.name[ml])}</b><small>${esc(m.desc[ml])}</small></div><button type="button" class="secondary module-open" data-open="${m.key}" ${modOn(m.key)?"":"disabled"}>${["فتح","Ouvrir","Open"][ml]}</button><label class="switch" aria-label="${esc(m.name[ml])}"><input type="checkbox" data-module="${m.key}" ${modOn(m.key)?"checked":""}><span class="slider"></span></label></div>`).join("")}</div></div>`:"";
+  $("content").innerHTML=`${modulesPanel}${businessPanel}
     <div class="panel">
       <div class="section-head"><div><h3>Rapport quotidien sur WhatsApp</h3><span class="muted">حدد رقمك والساعة والتفاصيل اللي بغيتي توصلك كل نهار.</span></div><span class="badge">WhatsApp Business</span></div>
       <form id="dailyReportSettings" class="form-grid">
@@ -873,6 +887,17 @@ async function settingsPage(){
     </div>
     <div class="panel"><h3>آخر التقارير</h3>${(deliveries||[]).length?(deliveries||[]).map(x=>`<div class="row"><span>${esc(x.report_date)} — ${esc(x.recipient)}</span><span class="badge">${x.status==="sent"?"تم الإرسال":x.status==="failed"?"فشل الإرسال":"قيد المعالجة"}</span></div>${x.error_message?`<small class="muted">${esc(x.error_message)}</small>`:""}`).join(""):"<p class='muted'>مازال ما تسيفط حتى تقرير.</p>"}</div>${salesTestPanel}`;
   window.BizoraI18n?.mountSettings();
+  document.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>loadPage(b.dataset.open));
+  document.querySelectorAll("[data-module]").forEach(input=>input.onchange=async()=>{
+   const key=input.dataset.module,enabled=input.checked;input.disabled=true;
+   const {data,error}=await sb.rpc("bizora_set_module",{p_org:orgId,p_key:key,p_enabled:enabled});
+   input.disabled=false;
+   if(error){input.checked=!enabled;toast(error.message);return;}
+   const org=orgs.find(o=>o.id===orgId);if(org)org.enabled_modules=data||{...(org.enabled_modules||{}),[key]:enabled};
+   applyModules();
+   const open=document.querySelector('[data-open="'+key+'"]');if(open)open.disabled=!enabled;
+   toast(enabled?"تم تشغيل الوحدة":"تم إغلاق الوحدة");
+  });
   if($("businessTypeForm"))$("businessTypeForm").onsubmit=async e=>{e.preventDefault();const type=new FormData(e.target).get("business_type");const {error}=await sb.rpc("bizora_set_business_type",{p_org:orgId,p_type:type});if(error){$("businessTypeMsg").textContent=error.message;return}const o=orgs.find(x=>x.id===orgId);if(o)o.business_type=type;applyBusinessProfile();$("businessTypeMsg").textContent="تم حفظ نوع النشاط";toast("تم حفظ نوع النشاط")};
   if(canRunSalesTest){
     let testRecipient="";
