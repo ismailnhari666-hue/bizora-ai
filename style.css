@@ -252,3 +252,6 @@ body.no-tables .table-only,body.no-menu .menu-only{display:none!important}
 .back-settings{margin-bottom:12px}
 body.mod-off-orders .dashboard-orders,body.mod-off-sales .dashboard-recent,body.mod-off-sales .dashboard-best,body.mod-off-sales .dashboard-chart-panel,body.mod-off-finance .fin-strip,
 body.mod-off-products [onclick*="loadPage('products')"],body.mod-off-reports [onclick*="loadPage('reports')"],body.mod-off-sales [onclick*="loadPage('sales')"],body.mod-off-orders [onclick*="loadPage('orders')"],body.mod-off-finance [onclick*="loadPage('finance')"],body.mod-off-users [onclick*="loadPage('users')"]{display:none!important}
+
+.net-banner{position:fixed;left:0;right:0;bottom:0;z-index:9999;display:flex;gap:12px;align-items:center;justify-content:center;padding:10px 16px;background:#1d2b44;color:#fff;font-size:14px;text-align:center}.net-banner.is-offline{background:#a35a00}.net-banner button{background:#fff;color:#1d2b44;border:0;border-radius:8px;padding:4px 10px;cursor:pointer}.net-banner.hidden{display:none}
+.worker-order-card.is-pending{border-style:dashed;opacity:.85}

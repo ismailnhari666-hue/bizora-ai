@@ -114,9 +114,64 @@ $("refresh").onclick=()=>loadPage(currentPage);
 $("orgForm").onsubmit=async e=>{e.preventDefault();$("orgMsg").textContent="Création…";const {data,error}=await sb.rpc("bizora_create_organization",{p_name:$("orgName").value.trim()});if(error){$("orgMsg").textContent=error.message;return}toast("تم إنشاء المحل");try{const t=await sb.rpc("bizora_set_business_type",{p_org:data,p_type:$("orgType").value});if(t.error)console.warn("business_type:",t.error.message)}catch(e){console.warn("business_type:",e)}await loadOrganizations(data)};
 $("orgSelect").onchange=async e=>{await loadOrganizations(e.target.value)};
 document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>{if(document.body.classList.contains("worker-mode"))return;loadPage(b.dataset.page)});
+
+// ---------- Offline mode: local queue for orders, cached data, auto sync ----------
+const AUTH_STORE_KEY="sb-pywdltkplgvbxdejqext-auth-token";
+const readJson=(key,fallback)=>{try{const v=JSON.parse(localStorage.getItem(key));return v==null?fallback:v}catch{return fallback}};
+const writeJson=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));return true}catch{return false}};
+const isNetErr=e=>!!e&&(!navigator.onLine||(!e.code&&/failed to fetch|networkerror|load failed|network request failed|fetch/i.test(String(e.message||e))));
+const outboxKey=()=>"bizora_outbox_"+(user?.id||"x")+"_"+(orgId||"x");
+const failKey=()=>"bizora_outbox_failed_"+(user?.id||"x")+"_"+(orgId||"x");
+const outboxList=()=>user&&orgId?readJson(outboxKey(),[]):[];
+function outboxSave(list){writeJson(outboxKey(),list);renderNetBanner();}
+async function rpcOrQueue(rpc,args,meta){
+ if(navigator.onLine){const r=await sb.rpc(rpc,args);if(!isNetErr(r.error))return r;}
+ const list=outboxList();
+ list.push({id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random()),rpc,args,meta:meta||{},at:new Date().toISOString()});
+ outboxSave(list);
+ return {data:null,error:null,queued:true};
+}
+let workerRefreshHook=null,flushing=false;
+async function flushOutbox(){
+ if(flushing||!user||!orgId||!navigator.onLine||!outboxList().length)return;
+ flushing=true;let sent=0;
+ try{
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session)return;
+  for(let guard=0;guard<200;guard++){
+   const list=outboxList();if(!list.length)break;
+   const item=list[0];
+   const r=await sb.rpc(item.rpc,item.args);
+   if(isNetErr(r.error))break;
+   outboxSave(outboxList().filter(x=>x.id!==item.id));
+   if(r.error){const failed=readJson(failKey(),[]);failed.push({...item,error:r.error.message});writeJson(failKey(),failed);}
+   else sent++;
+  }
+ }finally{flushing=false;renderNetBanner();}
+ if(sent){toast(({ar:"تمت مزامنة "+sent+" عملية",fr:sent+" opération(s) synchronisée(s)"}[window.BizoraI18n?.language])||sent+" operation(s) synced");if(workerRefreshHook)workerRefreshHook();}
+}
+function renderNetBanner(){
+ let b=$("netBanner");
+ if(!b){b=document.createElement("div");b.id="netBanner";b.className="net-banner hidden";b.setAttribute("role","status");document.body.appendChild(b);}
+ const lang=window.BizoraI18n?.language||"ar";
+ const L=(ar,fr,en)=>({ar,fr}[lang]||en);
+ const pending=outboxList().length,failed=readJson(failKey(),[]).length,offline=!navigator.onLine;
+ if(!offline&&!pending&&!failed){b.classList.add("hidden");return;}
+ const parts=[];
+ if(offline)parts.push(L("ما كاينش إنترنت. تقدر تكمل البيع، والطلبات كتتبعث أوتوماتيكيا ملي يرجع النت.","Pas de connexion. Vous pouvez continuer à vendre : les commandes seront envoyées dès le retour d’internet.","You are offline. Keep selling: orders are sent automatically when internet is back."));
+ if(pending)parts.push(L("في الانتظار: "+pending,"En attente : "+pending,"Waiting to sync: "+pending));
+ if(failed)parts.push(L("عمليات رفضها السيرفر: "+failed,"Refusées par le serveur : "+failed,"Rejected by the server: "+failed));
+ b.innerHTML="<span>"+esc(parts.join(" • "))+"</span>"+(failed?'<button type="button" id="netBannerClear">'+esc(L("إخفاء","Masquer","Dismiss"))+"</button>":"");
+ b.classList.toggle("is-offline",offline);b.classList.remove("hidden");
+ const clear=$("netBannerClear");if(clear)clear.onclick=()=>{writeJson(failKey(),[]);renderNetBanner();};
+}
+window.addEventListener("online",()=>{renderNetBanner();flushOutbox();});
+window.addEventListener("offline",renderNetBanner);
+setInterval(()=>{renderNetBanner();flushOutbox();},30000);
 async function boot(){
  const {data:{session}}=await sb.auth.getSession();
  user=session?.user||null;
+ if(!user&&!navigator.onLine){const stored=readJson(AUTH_STORE_KEY,null);user=stored?.user||stored?.currentSession?.user||null;}
  if(!user){
   currentRole=null;orgs=[];orgId=null;
   window.BizoraI18n?.mount("guest");
@@ -136,9 +191,12 @@ async function accessRequest(body){
  return data||{};
 }
 async function loadOrganizations(preselect){
- const {data,error}=await sb.from("memberships")
+ let {data,error}=await sb.from("memberships")
   .select("organization_id,role,is_active,organizations(id,name,currency,timezone,business_type,enabled_modules)")
   .eq("user_id",user.id);
+ const memKey="bizora_cache_memberships_"+user.id;
+ if(error&&isNetErr(error)){const cached=readJson(memKey,null);if(cached){data=cached;error=null;}}
+ else if(!error)writeJson(memKey,data);
  if(error){toast(error.message);return;}
  const memberships=(data||[]).filter(row=>row.organizations);
  const activeMemberships=memberships.filter(row=>row.is_active);
@@ -376,10 +434,13 @@ async function workerOrderInterface(){
   completed:{ar:"مكتمل",fr:"Terminée",en:"Completed",es:"Completado",de:"Abgeschlossen","zh-CN":"已完成"},
   cancelled:{ar:"ملغي",fr:"Annulée",en:"Cancelled",es:"Cancelado",de:"Storniert","zh-CN":"已取消"}
  };
- const [productResult,ordersResult]=await Promise.all([
+ let [productResult,ordersResult]=await Promise.all([
   sb.from("products").select("id,name,unit_price,item_type,category").eq("organization_id",orgId).eq("is_active",true).order("name"),
   sb.from("orders").select("id,status,table_label,total,created_at,order_items(product_name,quantity)").eq("organization_id",orgId).eq("created_by",user.id).order("created_at",{ascending:false}).limit(100)
  ]);
+ const prodKey="bizora_cache_products_"+orgId;
+ if(productResult.error&&isNetErr(productResult.error)){const cached=readJson(prodKey,null);if(cached)productResult={data:cached,error:null};}
+ else if(!productResult.error)writeJson(prodKey,productResult.data||[]);
  if(productResult.error){$("content").innerHTML='<div class="panel notice">'+esc(productResult.error.message)+'</div>';return;}
  const menu=(productResult.data||[]).filter(p=>p.item_type==="food"||p.item_type==="drink");
  let filter=bizProfile().menu?"food":"all";
@@ -424,8 +485,13 @@ async function workerOrderInterface(){
  };
  const refreshOrders=async()=>{
   const {data,error}=await sb.from("orders").select("id,status,table_label,total,created_at,order_items(product_name,quantity)").eq("organization_id",orgId).eq("created_by",user.id).order("created_at",{ascending:false}).limit(100);
-  if(error){$("workerOrders").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
-  const rows=data||[];
+  const ordKey="bizora_cache_orders_"+user.id+"_"+orgId;
+  let cachedRows=null;
+  if(error&&isNetErr(error))cachedRows=readJson(ordKey,[]);
+  else if(error){$("workerOrders").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
+  else writeJson(ordKey,(data||[]).slice(0,40));
+  const pendingRows=outboxList().filter(x=>x.rpc==="bizora_create_order").map(x=>({id:x.id,status:"pending",table_label:x.args.p_table,total:x.meta?.total||0,created_at:x.at,order_items:x.meta?.lines||[],_pending:true})).reverse();
+  const rows=[...pendingRows,...(cachedRows||data||[])];
   const dayStart=new Date();dayStart.setHours(0,0,0,0);
   const mine=rows.filter(o=>new Date(o.created_at)>=dayStart&&o.status!=="cancelled");
   const pieces=mine.reduce((s,o)=>s+(o.order_items||[]).reduce((n,i)=>n+Number(i.quantity||0),0),0);
@@ -433,17 +499,17 @@ async function workerOrderInterface(){
   const sl=({ar:["مبيعاتي اليوم","عدد الطلبات","القطع المباعة"],fr:["Mes ventes aujourd’hui","Commandes","Articles vendus"],en:["My sales today","Orders","Items sold"],es:["Mis ventas hoy","Pedidos","Artículos vendidos"],de:["Meine Verkäufe heute","Bestellungen","Verkaufte Artikel"],"zh-CN":["今日销售","订单数","售出件数"]})[lang]||["مبيعاتي اليوم","عدد الطلبات","القطع المباعة"];
   $("workerSummary").innerHTML='<div><small>'+esc(sl[0])+'</small><strong>'+money(total)+'</strong></div><div><small>'+esc(sl[1])+'</small><strong>'+mine.length+'</strong></div><div><small>'+esc(sl[2])+'</small><strong>'+pieces+'</strong></div>';
   $("workerOrders").innerHTML=rows.length?rows.slice(0,25).map(order=>
-   '<article class="worker-order-card"><div class="worker-order-card-head"><b>#'+order.id.slice(0,8).toUpperCase()+'</b><span class="worker-status">'+esc(statusText(order.status))+'</span></div>'+
+   '<article class="worker-order-card'+(order._pending?' is-pending':'')+'"><div class="worker-order-card-head"><b>'+(order._pending?'⏳':'#'+order.id.slice(0,8).toUpperCase())+'</b><span class="worker-status">'+esc(order._pending?W('ما تبعتش بعد','Pas encore envoyée','Not sent yet'):statusText(order.status))+'</span></div>'+
    '<small class="muted">'+esc(order.table_label||"—")+' • '+new Date(order.created_at).toLocaleTimeString(window.BizoraI18n?.locale||"ar-MA",{hour:"2-digit",minute:"2-digit"})+'</small>'+
    '<ul>'+(order.order_items||[]).map(item=>'<li>'+esc(item.product_name)+' × '+Number(item.quantity)+'</li>').join("")+'</ul>'+
-   '<b>'+money(order.total)+'</b>'+(order.status==="completed"||order.status==="cancelled"?"":'<label class="worker-table-label">'+esc(W("طريقة الدفع","Paiement","Payment"))+'<select data-order-pay="'+order.id+'"><option value="cash">'+esc(W("نقداً","Espèces","Cash"))+'</option><option value="card">'+esc(W("بطاقة","Carte","Card"))+'</option><option value="transfer">'+esc(W("تحويل","Virement","Transfer"))+'</option></select></label>')+'<label class="worker-table-label">'+esc(t.status)+'<select data-order-status="'+order.id+'">'+statusValues.map(value=>'<option value="'+value+'" '+(order.status===value?"selected":"")+'>'+esc(statusText(value))+'</option>').join("")+'</select></label></article>'
+   '<b>'+money(order.total)+'</b>'+(order._pending||order.status==="completed"||order.status==="cancelled"?"":'<label class="worker-table-label">'+esc(W("طريقة الدفع","Paiement","Payment"))+'<select data-order-pay="'+order.id+'"><option value="cash">'+esc(W("نقداً","Espèces","Cash"))+'</option><option value="card">'+esc(W("بطاقة","Carte","Card"))+'</option><option value="transfer">'+esc(W("تحويل","Virement","Transfer"))+'</option></select></label>')+'<label class="worker-table-label">'+esc(t.status)+'<select data-order-status="'+order.id+'">'+statusValues.map(value=>'<option value="'+value+'" '+(order.status===value?"selected":"")+'>'+esc(statusText(value))+'</option>').join("")+'</select></label></article>'
   ).join(""):'<div class="empty">'+esc(t.noOrders)+'</div>';
   $("workerOrders").querySelectorAll("[data-order-status]").forEach(select=>select.onchange=async()=>{
    const id=select.dataset.orderStatus,status=select.value;select.disabled=true;
    const patch={status,updated_at:new Date().toISOString()};
    if(status==="completed")patch.payment_method=$("workerOrders").querySelector('[data-order-pay="'+id+'"]')?.value||"cash";
    const {error:updateError}=await sb.from("orders").update(patch).eq("id",id).eq("organization_id",orgId);
-   if(updateError){toast(updateError.message);}else{toast("تم تحديث حالة الطلب");}
+   if(updateError){toast(isNetErr(updateError)?W("ما كاينش إنترنت. جرّب من بعد.","Pas de connexion. Réessayez plus tard.","You are offline. Try again later."):updateError.message);}else{toast("تم تحديث حالة الطلب");}
    await refreshOrders();
   });
  };
@@ -454,7 +520,7 @@ async function workerOrderInterface(){
   renderProducts();
  });
  $("workerClear").onclick=()=>{workerCart=[];renderCart();};
- $("workerRefreshOrders").onclick=refreshOrders;
+ $("workerRefreshOrders").onclick=refreshOrders;workerRefreshHook=refreshOrders;renderNetBanner();setTimeout(flushOutbox,600);
  $("cashForm").onsubmit=async e=>{
   e.preventDefault();
   const amount=Number($("cashCounted").value);
@@ -469,14 +535,15 @@ async function workerOrderInterface(){
   const table=bizProfile().tables?$("workerTable").value:"Comptoir";
   if(!table){toast(t.choose);$("workerTable").focus();return;}
   const button=$("workerSend");button.disabled=true;button.textContent="…";
-  const {data,error}=await sb.rpc("bizora_create_order",{
+  const meta={lines:workerCart.map(item=>({product_name:item.name,quantity:item.qty})),total:workerCart.reduce((s,item)=>s+item.qty*item.price,0)};
+  const {data,error,queued}=await rpcOrQueue("bizora_create_order",{
    p_org:orgId,p_customer:null,p_table:table,p_note:null,
    p_items:workerCart.map(item=>({product_id:item.id,quantity:item.qty}))
-  });
+  },meta);
   button.disabled=false;button.textContent=t.confirm;
   if(error){toast(error.message);return;}
   workerCart=[];renderCart();if(bizProfile().tables)$("workerTable").value="";
-  toast(t.orderDone);await refreshOrders();
+  toast(queued?W("تسجل فالتيليفون. غادي يتبعث ملي يرجع النت","Enregistrée localement, envoi au retour d’internet","Saved on device, will send when back online"):t.orderDone);await refreshOrders();
  };
  renderProducts();renderCart();
  $("workerOrders").innerHTML='<div class="empty">'+esc(t.noOrders)+'</div>';
@@ -929,5 +996,5 @@ async function settingsPage(){
 }
 
 async function reportsPage(){const {data,error}=await sb.from("sales").select("total,created_at,status").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(500);if(error){toast(error.message);return}const total=(data||[]).reduce((a,x)=>a+Number(x.total),0);$("content").innerHTML=`<div class="grid"><div class="stat"><small>Ventes chargées</small><strong>${data.length}</strong></div><div class="stat"><small>Chiffre d'affaires cumulé</small><strong>${money(total)}</strong></div><div class="stat"><small>Ventes finalisées</small><strong>${data.filter(x=>x.status==="completed").length}</strong></div><div class="stat"><small>Période</small><strong>500</strong><em>Dernières opérations maximum</em></div></div><div class="panel" style="margin-top:16px"><h3>Export des ventes</h3><button class="primary" id="exportCsv">Télécharger CSV</button></div>`;$("exportCsv").onclick=()=>{const rows=[["date","total","status"],...(data||[]).map(x=>[x.created_at,x.total,x.status])];const csv=rows.map(r=>r.join(";")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv"}));a.download="bizora-ventes.csv";a.click();URL.revokeObjectURL(a.href)}}
-sb.auth.onAuthStateChange((_event,session)=>{if(!session){$("authView").classList.remove("hidden");$("appView").classList.add("hidden")}});
+sb.auth.onAuthStateChange((_event,session)=>{if(!session&&navigator.onLine){$("authView").classList.remove("hidden");$("appView").classList.add("hidden")}});
 boot();
