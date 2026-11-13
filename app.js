@@ -948,6 +948,37 @@ async function camerasPage(){
   $("shareDailyReport").onclick=async()=>{const report="BIZORA AI - Rapport du "+new Date().toLocaleDateString(window.BizoraI18n?.locale||"fr-MA")+"\\nCA : "+money(revenue)+"\\nVentes : "+todaySales.length+"\\nCommandes actives : "+activeOrders.length+"\\nAlertes stock : "+lowStock.length+"\\nEspèces : "+money(cash);if(navigator.share){try{await navigator.share({title:"Rapport quotidien BIZORA AI",text:report})}catch(e){}}else if(navigator.clipboard){await navigator.clipboard.writeText(report);toast("Rapport copié. Vous pouvez le partager sur WhatsApp.")}else toast(report)};
 }
 
+async function loadBoardPanel(){
+ const holder=$("boardPanel");if(!holder)return;
+ const menu=bizProfile().menu;
+ const {data,error}=await sb.from("products").select("id,name,category,unit_price,item_type").eq("organization_id",orgId).eq("is_active",true).order("name");
+ if(error){holder.innerHTML='<div class="panel notice">'+esc(error.message)+'</div>';return;}
+ const list=data||[];
+ holder.innerHTML='<div class="panel"><div class="section-head"><div><h3>لوحة المبيعات</h3><span class="muted">المنتجات اللي كتبان للعامل فلوحة البيع. زيد منتج أو نحّيه من هنا.</span></div><span class="badge">'+list.length+'</span></div>'+
+  '<form id="boardForm" class="form-grid"><label>اسم المنتج<input name="name" maxlength="120" required placeholder="مثال: قميص أبيض"></label>'+
+  (menu?'<label>النوع<select name="item_type"><option value="food">مأكولات</option><option value="drink">مشروبات</option></select></label>':'')+
+  '<label>الفئة (اختياري)<input name="category" maxlength="80"></label><label>ثمن البيع (درهم)<input name="unit_price" type="number" min="0" max="9999999" step=".01" required></label><label>ثمن الشراء (اختياري)<input name="cost_price" type="number" min="0" step=".01" value="0"></label><label>المخزون (اختياري)<input name="stock_quantity" type="number" min="0" step=".001" value="0"></label>'+
+  '<div class="row"><button class="primary" id="boardAddBtn">إضافة للوحة</button></div></form>'+
+  '<div class="board-list">'+(list.length?list.map(p=>'<div class="board-row"><div><b>'+esc(p.name)+'</b><small>'+esc(p.category||"")+'</small></div><strong>'+money(p.unit_price)+'</strong><button type="button" class="secondary" data-board-remove="'+p.id+'">إزالة</button></div>').join(""):'<div class="empty">اللوحة خاوية. زيد أول منتج.</div>')+'</div>'+
+  '<p class="muted">الإزالة كتخبي المنتج من اللوحة وما كتمسحش المبيعات القديمة. تقدر ترجعو من «المنتجات والمخزون».</p></div>';
+ $("boardForm").onsubmit=async e=>{
+  e.preventDefault();const f=new FormData(e.target);
+  const name=String(f.get("name")||"").trim(),price=Number(f.get("unit_price")),cost=Number(f.get("cost_price")||0),stock=Number(f.get("stock_quantity")||0);
+  if(!name||!Number.isFinite(price)||price<0||![cost,stock].every(n=>Number.isFinite(n)&&n>=0)){toast("تحقق من الاسم والأثمنة.");return;}
+  const type=menu&&f.get("item_type")==="drink"?"drink":"food";
+  const btn=$("boardAddBtn");btn.disabled=true;
+  const {error:addError}=await sb.from("products").insert({organization_id:orgId,name,item_type:type,category:String(f.get("category")||"").trim()||null,unit_price:price,cost_price:cost,stock_quantity:stock,low_stock_threshold:0,service_station:type==="drink"?"bar":"kitchen"});
+  btn.disabled=false;
+  if(addError){toast(addError.message);return;}
+  toast("تمت إضافة المنتج للوحة");await loadBoardPanel();
+ };
+ holder.querySelectorAll("[data-board-remove]").forEach(b=>b.onclick=async()=>{
+  if(!confirm("نحيد هاد المنتج من لوحة المبيعات؟"))return;
+  const {error:rmError}=await sb.from("products").update({is_active:false}).eq("id",b.dataset.boardRemove).eq("organization_id",orgId);
+  if(rmError){toast(rmError.message);return;}
+  toast("تمت الإزالة من اللوحة");await loadBoardPanel();
+ });
+}
 async function settingsPage(){
   const [{data:s,error},{data:deliveries}]=await Promise.all([
     sb.from("daily_report_settings").select("*").eq("organization_id",orgId).maybeSingle(),
@@ -962,7 +993,7 @@ async function settingsPage(){
   const salesTestPanel=canRunSalesTest?`<div class="panel" style="margin-top:16px"><div class="section-head"><div><h3>اختبار تقرير المبيعات فقط</h3><span class="muted">إرسال تجريبي مستقل، بدون الكاميرات وبدون تفعيل التقرير اليومي.</span></div><span class="badge">اختبار يدوي</span></div><form id="salesTestForm" class="form-grid"><label>رقم WhatsApp الشخصي بصيغة دولية<input name="recipient" type="tel" inputmode="tel" placeholder="+2126XXXXXXXX" required maxlength="20"><small class="muted">الرقم يستعمل لهذا الاختبار فقط ولا يتم حفظه.</small></label><button class="primary" type="submit">معاينة تقرير المبيعات</button></form><div id="salesTestPreview" class="muted" aria-live="polite"></div></div>`:"";
   const ml=(lang=>({ar:0,fr:1}[lang]??2))(window.BizoraI18n?.language);
   const modulesPanel=currentRole==="owner"?`<div class="panel"><div class="section-head"><div><h3>${["الوحدات","Modules","Modules"][ml]}</h3><span class="muted">${["شغّل أو سد كل وحدة. الوحدة المغلقة كتختفي من التطبيق.","Activez ou désactivez chaque module. Un module désactivé disparaît de l’application.","Turn each module on or off. A disabled module disappears from the app."][ml]}</span></div></div><div class="module-list">${MODULES.map(m=>`<div class="module-row" data-module-row="${m.key}"><span class="module-icon">${m.icon}</span><div class="module-text"><b>${esc(m.name[ml])}</b><small>${esc(m.desc[ml])}</small></div><button type="button" class="secondary module-open" data-open="${m.key}" ${modOn(m.key)?"":"disabled"}>${["فتح","Ouvrir","Open"][ml]}</button><label class="switch" aria-label="${esc(m.name[ml])}"><input type="checkbox" data-module="${m.key}" ${modOn(m.key)?"checked":""}><span class="slider"></span></label></div>`).join("")}</div></div>`:"";
-  $("content").innerHTML=`${modulesPanel}${businessPanel}
+  $("content").innerHTML=`${currentRole==="owner"?'<div id="boardPanel"></div>':""}${modulesPanel}${businessPanel}
     <div class="panel">
       <div class="section-head"><div><h3>Rapport quotidien sur WhatsApp</h3><span class="muted">حدد رقمك والساعة والتفاصيل اللي بغيتي توصلك كل نهار.</span></div><span class="badge">WhatsApp Business</span></div>
       <form id="dailyReportSettings" class="form-grid">
@@ -985,6 +1016,7 @@ async function settingsPage(){
     </div>
     <div class="panel"><h3>آخر التقارير</h3>${(deliveries||[]).length?(deliveries||[]).map(x=>`<div class="row"><span>${esc(x.report_date)} — ${esc(x.recipient)}</span><span class="badge">${x.status==="sent"?"تم الإرسال":x.status==="failed"?"فشل الإرسال":"قيد المعالجة"}</span></div>${x.error_message?`<small class="muted">${esc(x.error_message)}</small>`:""}`).join(""):"<p class='muted'>مازال ما تسيفط حتى تقرير.</p>"}</div>${salesTestPanel}`;
   window.BizoraI18n?.mountSettings();
+  if($("boardPanel"))loadBoardPanel();
   document.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>loadPage(b.dataset.open));
   document.querySelectorAll("[data-module]").forEach(input=>input.onchange=async()=>{
    const key=input.dataset.module,enabled=input.checked;input.disabled=true;

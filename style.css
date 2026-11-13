@@ -257,3 +257,5 @@ body.mod-off-products [onclick*="loadPage('products')"],body.mod-off-reports [on
 .worker-order-card.is-pending{border-style:dashed;opacity:.85}
 
 button.worker-product-tile{font:inherit;color:inherit;width:100%;cursor:pointer;text-align:center}button.worker-product-tile:active{transform:scale(.97)}button.worker-product-tile:focus-visible{outline:3px solid #9ad7c9;outline-offset:2px}
+
+.board-list{display:grid;gap:8px;margin:14px 0}.board-row{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e4e9f1;border-radius:12px;padding:10px 14px}.board-row>div{flex:1;min-width:0}.board-row small{display:block;color:#5d687b}

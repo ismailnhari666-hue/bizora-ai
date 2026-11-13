@@ -1,6 +1,6 @@
-const CACHE_NAME = "bizora-shell-v59";
+const CACHE_NAME = "bizora-shell-v60";
 const SUPABASE_CDN = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-const APP_SHELL = ["./", "./index.html", "./style.css?v=20261108-restore01", "./app.js?v=20261113-tile01", "./i18n-extra.js?v=20261113-tile01", "./locale.js?v=20261113-tile01", "./manifest.webmanifest", "./icons/bizora-icon.svg"];
+const APP_SHELL = ["./", "./index.html", "./style.css?v=20261108-restore01", "./app.js?v=20261113-board01", "./i18n-extra.js?v=20261113-board01", "./locale.js?v=20261113-board01", "./manifest.webmanifest", "./icons/bizora-icon.svg"];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL).then(() => cache.add(new Request(SUPABASE_CDN, { mode: "no-cors" })).catch(() => {}))).then(() => self.skipWaiting()));
 });

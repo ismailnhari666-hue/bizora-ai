@@ -4,6 +4,15 @@
    Spanish, German and Chinese fall back to English for any phrase they do not already translate. */
 (()=>{
 const A=[
+["لوحة المبيعات","Tableau des ventes","Sales board"],
+["المنتجات اللي كتبان للعامل فلوحة البيع. زيد منتج أو نحّيه من هنا.","Produits affichés à l’employé sur le tableau de vente. Ajoutez ou retirez ici.","Products shown to the worker on the sales board. Add or remove them here."],
+["إضافة للوحة","Ajouter au tableau","Add to board"],
+["إزالة","Retirer","Remove"],
+["اللوحة خاوية. زيد أول منتج.","Le tableau est vide. Ajoutez un premier produit.","The board is empty. Add your first product."],
+["الإزالة كتخبي المنتج من اللوحة وما كتمسحش المبيعات القديمة. تقدر ترجعو من «المنتجات والمخزون».","Retirer masque le produit du tableau sans supprimer les anciennes ventes. Vous pouvez le restaurer depuis « Produits & stock ».","Removing hides the product from the board and keeps past sales. You can restore it from “Products & stock”."],
+["تمت إضافة المنتج للوحة","Produit ajouté au tableau","Product added to the board"],
+["تمت الإزالة من اللوحة","Retiré du tableau","Removed from the board"],
+["نحيد هاد المنتج من لوحة المبيعات؟","Retirer ce produit du tableau de vente ?","Remove this product from the sales board?"],
 ["الكود السري ديالك","Votre code secret","Your secret code"],
 ["أدخل الكود المكوّن من 8 أرقام","Entrez le code à 8 chiffres","Enter the 8-digit code"],
 ["دخول العامل","Connexion employé","Worker sign-in"],
