@@ -255,3 +255,5 @@ body.mod-off-products [onclick*="loadPage('products')"],body.mod-off-reports [on
 
 .net-banner{position:fixed;left:0;right:0;bottom:0;z-index:9999;display:flex;gap:12px;align-items:center;justify-content:center;padding:10px 16px;background:#1d2b44;color:#fff;font-size:14px;text-align:center}.net-banner.is-offline{background:#a35a00}.net-banner button{background:#fff;color:#1d2b44;border:0;border-radius:8px;padding:4px 10px;cursor:pointer}.net-banner.hidden{display:none}
 .worker-order-card.is-pending{border-style:dashed;opacity:.85}
+
+button.worker-product-tile{font:inherit;color:inherit;width:100%;cursor:pointer;text-align:center}button.worker-product-tile:active{transform:scale(.97)}button.worker-product-tile:focus-visible{outline:3px solid #9ad7c9;outline-offset:2px}

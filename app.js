@@ -489,11 +489,9 @@ async function workerOrderInterface(){
  const renderProducts=()=>{
   const query=($("workerSearch").value||"").toLocaleLowerCase();
   const shown=menu.filter(p=>(filter==="all"||p.item_type===filter)&&String(p.name||"").toLocaleLowerCase().includes(query)).slice(0,16);
-  const slots=Array.from({length:16},(_,i)=>shown[i]||null);
-  $("workerProducts").innerHTML=slots.map((p,i)=>{
-   if(!p)return '<article class="worker-product-tile is-empty"><div class="worker-product-art">＋</div><div class="worker-product-info"><b>'+esc(filter==="food"?t.food:filter==="drink"?t.drink:"")+'</b><small>—</small></div></article>';
+  $("workerProducts").innerHTML=shown.map(p=>{
    const icon=!bizProfile().menu?"🛍️":(p.item_type==="drink"?"🥤":"🍽️");
-   return '<article class="worker-product-tile has-product"><div class="worker-product-art" aria-hidden="true">'+icon+'</div><div class="worker-product-info"><b>'+esc(p.name)+'</b><small>'+esc(p.category||"")+'</small><strong>'+money(p.unit_price)+'</strong></div><button class="worker-add" data-add="'+p.id+'" aria-label="'+esc(t.add)+' '+esc(p.name)+'">+</button></article>';
+   return '<button type="button" class="worker-product-tile has-product" data-add="'+p.id+'" aria-label="'+esc(t.add)+' '+esc(p.name)+'"><div class="worker-product-art" aria-hidden="true">'+icon+'</div><div class="worker-product-info"><b>'+esc(p.name)+'</b><small>'+esc(p.category||"")+'</small><strong>'+money(p.unit_price)+'</strong></div></button>';
   }).join("");
   $("workerProducts").querySelectorAll("[data-add]").forEach(button=>button.onclick=()=>{
    const p=menu.find(item=>item.id===button.dataset.add);if(!p)return;
