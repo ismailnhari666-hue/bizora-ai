@@ -235,7 +235,32 @@ async function buildReport(settings: any, org: any, day: string) {
   }
 
   if (settings.include_profit) {
-    lines.push("ℹ️ الربح الصافي غير متاح حالياً: يلزم تسجيل المصاريف وتكلفة البضاعة المباعة بدقة.");
+    const { data: profit, error: profitError } = await supabase.rpc("bizora_profit_summary_service", {
+      p_org: org.id, p_from: day, p_to: day,
+    });
+    if (profitError || !profit) {
+      lines.push("ℹ️ الربح الصافي غير متاح حالياً.");
+    } else {
+      snapshot.profit = profit;
+      lines.push(
+        `📈 الربح الصافي: ${money(Number(profit.net_profit), currency)}`,
+        `التكلفة: ${money(Number(profit.cogs), currency)} — المصاريف: ${money(Number(profit.expenses), currency)}`,
+      );
+      if (Number(profit.items_without_cost) > 0) lines.push("ℹ️ بعض المنتجات بلا ثمن تكلفة: الربح غير كامل.");
+    }
+  }
+
+  {
+    const { data: counts, error: countsError } = await supabase.from("cash_counts")
+      .select("difference")
+      .eq("organization_id", org.id)
+      .gte("created_at", bounds.start).lt("created_at", bounds.end);
+    if (countsError) throw countsError;
+    if ((counts || []).length) {
+      const diff = (counts || []).reduce((sum: number, c: any) => sum + Number(c.difference || 0), 0);
+      snapshot.cash_counts = { count: counts!.length, difference: diff };
+      lines.push(`💵 جرد الصندوق: ${counts!.length} — الفرق: ${money(diff, currency)}`);
+    }
   }
   lines.push("التقرير مبني على العمليات المسجلة داخل Bizora خلال اليوم المحدد.");
   return { message: lines.join("\n").slice(0, 950), snapshot };

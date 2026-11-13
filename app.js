@@ -127,7 +127,7 @@ async function accessRequest(body){
 }
 async function loadOrganizations(preselect){
  const {data,error}=await sb.from("memberships")
-  .select("organization_id,role,is_active,organizations(id,name,currency,business_type)")
+  .select("organization_id,role,is_active,organizations(id,name,currency,timezone,business_type)")
   .eq("user_id",user.id);
  if(error){toast(error.message);return;}
  const memberships=(data||[]).filter(row=>row.organizations);
@@ -198,7 +198,7 @@ async function loadOrganizations(preselect){
  await loadPage(currentPage==="worker-ui"?"overview":currentPage);
 }
 function heading(title){$("pageTitle").textContent=title;document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===currentPage))}
-async function loadPage(page){if(!orgId)return;if(document.body.classList.contains("worker-mode")&&page!=="worker-ui")page="worker-ui";if(page==="users"&&currentRole!=="owner")page="overview";currentPage=page;document.querySelector(".topbar")?.classList.toggle("hidden",page==="overview"||page==="worker-ui");const names={overview:"لوحة القيادة",products:"المنتجات والمخزون",sales:"المبيعات",orders:"الطلبات",users:"المستخدمون",cameras:"الكاميرات",reports:"التقارير",settings:"الإعدادات"};heading(names[page]||"Vue générale");if(page==="overview")return overview();if(page==="products")return productPage();if(page==="sales")return salesPage();if(page==="orders")return ordersPage();if(page==="users")return usersPage();if(page==="cameras")return camerasPage();if(page==="reports")return reportsPage();if(page==="settings")return settingsPage();if(page==="worker-ui")return workerOrderInterface()}
+async function loadPage(page){if(!orgId)return;if(document.body.classList.contains("worker-mode")&&page!=="worker-ui")page="worker-ui";if(page==="users"&&currentRole!=="owner")page="overview";currentPage=page;document.querySelector(".topbar")?.classList.toggle("hidden",page==="overview"||page==="worker-ui");const names={overview:"لوحة القيادة",products:"المنتجات والمخزون",sales:"المبيعات",orders:"الطلبات",users:"المستخدمون",cameras:"الكاميرات",reports:"التقارير",finance:"المالية",settings:"الإعدادات"};heading(names[page]||"Vue générale");if(page==="overview")return overview();if(page==="products")return productPage();if(page==="sales")return salesPage();if(page==="orders")return ordersPage();if(page==="users")return usersPage();if(page==="cameras")return camerasPage();if(page==="reports")return reportsPage();if(page==="finance")return financePage();if(page==="settings")return settingsPage();if(page==="worker-ui")return workerOrderInterface()}
 async function overview(){
   const lang=window.BizoraI18n?.language||"ar";
   const tr=(ar,fr,en,es,de,zh)=>({ar,fr,en,es,de,"zh-CN":zh})[lang]||ar;
@@ -251,12 +251,101 @@ async function overview(){
         <section class="panel dashboard-shortcuts"><h3>اختصارات سريعة</h3><button onclick="loadPage('products')"><span>▦</span> المنتجات والمخزون <b>←</b></button><button onclick="loadPage('reports')"><span>▤</span> التقارير <b>←</b></button><button onclick="loadPage('cameras')"><span>◉</span> الكاميرات <b>←</b></button></section>
       </aside>
     </div>`;
+  loadProfitStrip();
+}
+
+const FIN_CATS={rent:["الكراء","Loyer","Rent"],utilities:["الكهرباء والماء والإنترنت","Électricité, eau, internet","Utilities"],salaries:["الأجور","Salaires","Salaries"],transport:["النقل","Transport","Transport"],marketing:["الإشهار","Publicité","Marketing"],supplies:["مستلزمات (غير السلعة)","Fournitures (hors marchandises)","Supplies (not stock)"],other:["أخرى","Autres","Other"]};
+function finDates(){
+ const tz=(orgs.find(o=>o.id===orgId)||{}).timezone||"Africa/Casablanca";
+ const ymd=d=>new Intl.DateTimeFormat("en-CA",{timeZone:tz,year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
+ const now=new Date(),today=ymd(now);
+ return {today,ymd,range:key=>key==="today"?[today,today]:key==="week"?[ymd(new Date(now.getTime()-6*86400000)),today]:key==="month"?[today.slice(0,8)+"01",today]:[ymd(new Date(now.getTime()-29*86400000)),today]};
+}
+async function loadProfitStrip(){
+ try{
+  const {today}=finDates();
+  const {data,error}=await sb.rpc("bizora_profit_summary",{p_org:orgId,p_from:today,p_to:today});
+  if(error||!data||currentPage!=="overview"||!$("content"))return;
+  const lang=window.BizoraI18n?.language||"ar";
+  const T=(ar,fr,en)=>({ar,fr,en})[lang]||en;
+  const el=document.createElement("section");
+  el.className="panel fin-strip";
+  el.innerHTML='<div><span class="muted">'+esc(T("ربح اليوم","Bénéfice du jour","Today’s profit"))+'</span><strong class="'+(Number(data.net_profit)<0?"fin-neg":"")+'">'+money(data.net_profit)+'</strong></div>'+
+   '<div class="fin-strip-detail"><span>'+esc(T("المبيعات","Ventes","Sales"))+' '+money(data.revenue)+'</span><span>'+esc(T("التكلفة","Coût","Cost"))+' '+money(data.cogs)+'</span><span>'+esc(T("المصاريف","Charges","Expenses"))+' '+money(data.expenses)+'</span></div>'+
+   '<button class="secondary" onclick="loadPage(\'finance\')">'+esc(T("المالية","Finance","Finance"))+'</button>';
+  $("content").prepend(el);
+ }catch(e){console.warn("profit strip:",e)}
+}
+async function financePage(){
+ const lang=window.BizoraI18n?.language||"ar";
+ const T=(ar,fr,en)=>({ar,fr,en})[lang]||en;
+ const catName=k=>(FIN_CATS[k]||FIN_CATS.other)[lang==="ar"?0:lang==="fr"?1:2];
+ const dates=finDates();
+ let period="today";
+ const periods=[["today",T("اليوم","Aujourd’hui","Today")],["week",T("7 أيام","7 jours","7 days")],["month",T("هذا الشهر","Ce mois","This month")],["30",T("30 يوم","30 jours","30 days")]];
+ $("content").innerHTML=
+  '<section class="panel fin-panel"><div class="section-head"><div><h3>'+esc(T("الربح والمصاريف","Bénéfices et charges","Profit and expenses"))+'</h3><span class="muted">'+esc(T("الربح = المبيعات − ثمن تكلفة السلعة − المصاريف","Bénéfice = ventes − coût des marchandises − charges","Profit = sales − cost of goods − expenses"))+'</span></div></div>'+
+  '<div class="fin-periods" id="finPeriods">'+periods.map(([k,l],i)=>'<button type="button" data-p="'+k+'" class="'+(i===0?"active":"")+'">'+esc(l)+'</button>').join("")+'</div>'+
+  '<div class="fin-cards" id="finCards"></div><p class="notice hidden" id="finWarn"></p></section>'+
+  '<section class="panel"><div class="section-head"><div><h3>'+esc(T("المصاريف","Charges","Expenses"))+'</h3><span class="muted">'+esc(T("مصاريف المحل فقط. ثمن السلعة كيتحسب أوتوماتيكياً من «ثمن التكلفة» فالمنتج، ماتدخلوش هنا.","Charges du commerce uniquement. Le coût des marchandises est calculé automatiquement à partir du prix de revient du produit.","Shop running costs only. The cost of goods is calculated automatically from each product’s cost price."))+'</span></div></div>'+
+  '<form id="expenseForm" class="fin-form"><input type="date" name="spent_on" value="'+dates.today+'" required>'+
+  '<select name="category">'+Object.keys(FIN_CATS).map(k=>'<option value="'+k+'">'+esc(catName(k))+'</option>').join("")+'</select>'+
+  '<input type="number" name="amount" min="0.01" step="0.01" required placeholder="'+esc(T("المبلغ (درهم)","Montant (MAD)","Amount (MAD)"))+'">'+
+  '<input type="text" name="note" maxlength="200" placeholder="'+esc(T("ملاحظة (اختياري)","Note (facultatif)","Note (optional)"))+'">'+
+  '<button class="primary">'+esc(T("إضافة المصروف","Ajouter la charge","Add expense"))+'</button></form>'+
+  '<div class="table-wrap" id="expenseList"></div></section>'+
+  '<section class="panel"><div class="section-head"><div><h3>'+esc(T("جرد الصندوق","Contrôle de caisse","Cash count"))+'</h3><span class="muted">'+esc(T("العامل كيدخل الفلوس اللي عندو آخر النهار، والتطبيق كيقارنها مع المبيعات النقدية ديالو.","L’employé saisit l’argent qu’il a en caisse ; l’application le compare à ses ventes en espèces.","The worker enters the cash in the drawer; the app compares it with their cash sales."))+'</span></div></div>'+
+  '<div class="table-wrap" id="cashList"></div></section>';
+
+ const loadSummary=async()=>{
+  const [from,to]=dates.range(period);
+  const {data,error}=await sb.rpc("bizora_profit_summary",{p_org:orgId,p_from:from,p_to:to});
+  if(error||!data){$("finCards").innerHTML='<div class="empty">'+esc(error?.message||"—")+'</div>';return;}
+  const net=Number(data.net_profit),rev=Number(data.revenue);
+  const cards=[[T("المبيعات","Ventes","Sales"),money(data.revenue),T(data.sales_count+" عملية",data.sales_count+" opérations",data.sales_count+" sales")],[T("تكلفة السلعة","Coût des marchandises","Cost of goods"),money(data.cogs),""],[T("الربح الإجمالي","Marge brute","Gross profit"),money(data.gross_profit),""],[T("المصاريف","Charges","Expenses"),money(data.expenses),""]];
+  $("finCards").innerHTML=cards.map(c=>'<div class="fin-card"><small>'+esc(c[0])+'</small><strong>'+c[1]+'</strong><em>'+esc(c[2])+'</em></div>').join("")+
+   '<div class="fin-card fin-card-main"><small>'+esc(T("الربح الصافي","Bénéfice net","Net profit"))+'</small><strong class="'+(net<0?"fin-neg":"")+'">'+money(net)+'</strong><em>'+(rev>0?Math.round(net/rev*100)+"%":"")+'</em></div>';
+  const warn=$("finWarn"),missing=Number(data.items_without_cost||0);
+  warn.classList.toggle("hidden",!missing);
+  warn.textContent=missing?T("⚠ "+missing+" سطر مبيعات بلا ثمن تكلفة، فالربح غير كامل. حدد ثمن التكلفة فصفحة المنتجات.","⚠ "+missing+" ligne(s) de vente sans prix de revient : le bénéfice est incomplet. Renseignez-le dans Produits.","⚠ "+missing+" sale line(s) have no cost price, so the profit is incomplete. Set it on the Products page."):"";
+ };
+ const loadExpenses=async()=>{
+  const {data,error}=await sb.from("expenses").select("id,spent_on,category,amount,note").eq("organization_id",orgId).order("spent_on",{ascending:false}).order("created_at",{ascending:false}).limit(30);
+  if(error){$("expenseList").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
+  const rows=data||[];
+  $("expenseList").innerHTML=rows.length?'<table><thead><tr><th>'+esc(T("التاريخ","Date","Date"))+'</th><th>'+esc(T("النوع","Catégorie","Category"))+'</th><th>'+esc(T("المبلغ","Montant","Amount"))+'</th><th>'+esc(T("ملاحظة","Note","Note"))+'</th><th></th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+esc(r.spent_on)+'</td><td>'+esc(catName(r.category))+'</td><td><b>'+money(r.amount)+'</b></td><td>'+esc(r.note||"—")+'</td><td><button class="ghost" data-del="'+r.id+'">'+esc(T("حذف","Supprimer","Delete"))+'</button></td></tr>').join("")+'</tbody></table>':'<div class="empty">'+esc(T("ما كاين حتى مصروف مسجل.","Aucune charge enregistrée.","No expenses recorded."))+'</div>';
+  $("expenseList").querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{
+   if(!confirm(T("حذف هاد المصروف؟","Supprimer cette charge ?","Delete this expense?")))return;
+   const {error:e}=await sb.from("expenses").delete().eq("id",b.dataset.del).eq("organization_id",orgId);
+   if(e){toast(e.message);return;}
+   await Promise.all([loadExpenses(),loadSummary()]);
+  });
+ };
+ const loadCash=async()=>{
+  const {data,error}=await sb.from("cash_counts").select("created_at,counted_by_email,expected_cash,counted_cash,difference,note").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(20);
+  if(error){$("cashList").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
+  const rows=data||[];
+  $("cashList").innerHTML=rows.length?'<table><thead><tr><th>'+esc(T("الوقت","Heure","Time"))+'</th><th>'+esc(T("العامل","Employé","Worker"))+'</th><th>'+esc(T("المتوقع","Attendu","Expected"))+'</th><th>'+esc(T("المعدود","Compté","Counted"))+'</th><th>'+esc(T("الفرق","Écart","Difference"))+'</th></tr></thead><tbody>'+rows.map(r=>{const d=Number(r.difference);const cls=d<0?"fin-neg":d>0?"fin-pos":"fin-ok";const txt=d===0?T("مطابق","Conforme","Match"):(d>0?"+":"")+money(d);return '<tr><td>'+esc(new Date(r.created_at).toLocaleString(window.BizoraI18n?.locale||"ar-MA",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}))+'</td><td>'+esc(r.counted_by_email||"—")+'</td><td>'+money(r.expected_cash)+'</td><td>'+money(r.counted_cash)+'</td><td class="'+cls+'"><b>'+txt+'</b></td></tr>'}).join("")+'</tbody></table>':'<div class="empty">'+esc(T("ما كاين حتى جرد للصندوق بعد.","Aucun contrôle de caisse pour le moment.","No cash counts yet."))+'</div>';
+ };
+ document.querySelectorAll("#finPeriods [data-p]").forEach(b=>b.onclick=()=>{period=b.dataset.p;document.querySelectorAll("#finPeriods [data-p]").forEach(x=>x.classList.toggle("active",x===b));loadSummary();});
+ $("expenseForm").onsubmit=async e=>{
+  e.preventDefault();
+  const f=new FormData(e.target),amount=Number(f.get("amount"));
+  if(!(amount>0)){toast(T("المبلغ غير صحيح","Montant invalide","Invalid amount"));return;}
+  const {error}=await sb.from("expenses").insert({organization_id:orgId,spent_on:f.get("spent_on")||dates.today,category:f.get("category"),amount,note:String(f.get("note")||"").trim()||null,created_by:user.id});
+  if(error){toast(error.message);return;}
+  toast(T("تمت إضافة المصروف","Charge ajoutée","Expense added"));
+  e.target.reset();e.target.elements.spent_on.value=dates.today;
+  await Promise.all([loadExpenses(),loadSummary()]);
+ };
+ await Promise.all([loadSummary(),loadExpenses(),loadCash()]);
 }
 
 let workerCart=[];
 async function workerOrderInterface(){
  if(workerRefreshTimer){clearInterval(workerRefreshTimer);workerRefreshTimer=null;}
  const lang=window.BizoraI18n?.language||"ar";
+ const W=(ar,fr,en)=>({ar,fr,en})[lang]||en;
  const words={
   ar:{title:"لوحة المبيعات",sub:"سجّل مبيعاتك وتابع حصيلتك اليوم",food:"المأكولات",drink:"المشروبات",search:"ابحث عن منتج…",cart:"الطلب الحالي",empty:"مازال ما ضفتي حتى منتج",qty:"الكمية",total:"المجموع",confirm:"تأكيد الطلب",clear:"مسح الطلب",add:"إضافة",table:"رقم الطاولة",choose:"اختار الطاولة",orders:"تتبع الطلبات",refresh:"تحديث",noOrders:"لا توجد طلبات حالياً",logout:"تسجيل الخروج",productsEmpty:"ما كاين حتى منتج نشط. تواصل مع صاحب المحل.",orderDone:"تم تسجيل الطلب بنجاح",status:"الحالة",currency:"درهم"},
   fr:{title:"Tableau des ventes",sub:"Enregistrez vos ventes et suivez votre journée",food:"Plats",drink:"Boissons",search:"Rechercher un produit…",cart:"Commande actuelle",empty:"Aucun article ajouté",qty:"Qté",total:"Total",confirm:"Valider la commande",clear:"Vider",add:"Ajouter",table:"Table",choose:"Choisir une table",orders:"Suivi des commandes",refresh:"Actualiser",noOrders:"Aucune commande pour le moment",logout:"Déconnexion",productsEmpty:"Aucun produit actif. Contactez le propriétaire.",orderDone:"Commande enregistrée",status:"Statut",currency:"MAD"},
@@ -288,6 +377,7 @@ async function workerOrderInterface(){
   '<div class="worker-screen">'+
    '<div class="worker-head"><div><span class="worker-kicker">'+esc(t.sub)+'</span><h2>'+esc(t.title)+'</h2></div><div class="worker-head-actions"><span class="worker-preview-badge">4 × 4</span><button id="workerLogout" class="worker-logout">'+esc(t.logout)+'</button></div></div>'+
    '<div class="worker-summary" id="workerSummary"></div>'+
+   '<form id="cashForm" class="worker-cash"><label>'+esc(W("إغلاق الصندوق: الفلوس اللي عندك دابا","Clôture de caisse : l’argent que vous avez","Close the drawer: cash you have now"))+'<input id="cashCounted" type="number" step="0.01" min="0" required inputmode="decimal"></label><button class="secondary">'+esc(W("تسجيل الجرد","Enregistrer","Submit count"))+'</button></form>'+
    '<div class="worker-layout"><section class="worker-menu"><div class="worker-toolbar"><div class="worker-tabs menu-only"><button class="active" data-filter="food">🍽 '+esc(t.food)+'</button><button data-filter="drink">🥤 '+esc(t.drink)+'</button></div><input id="workerSearch" type="search" placeholder="'+esc(t.search)+'"></div><div id="workerProducts" class="worker-products"></div></section>'+
    '<aside class="worker-order"><div class="worker-order-head"><div><h3>'+esc(t.cart)+'</h3><small><span id="workerCount">0</span> '+esc(t.qty)+'</small></div><button id="workerClear" class="ghost">'+esc(t.clear)+'</button></div>'+
    '<label class="worker-table-label table-only">'+esc(t.table)+'<select id="workerTable" required><option value="">'+esc(t.choose)+'</option>'+Array.from({length:12},(_,i)=>'<option value="Table '+(i+1)+'">'+(i+1)+'</option>').join("")+'</select></label>'+
@@ -334,11 +424,13 @@ async function workerOrderInterface(){
    '<article class="worker-order-card"><div class="worker-order-card-head"><b>#'+order.id.slice(0,8).toUpperCase()+'</b><span class="worker-status">'+esc(statusText(order.status))+'</span></div>'+
    '<small class="muted">'+esc(order.table_label||"—")+' • '+new Date(order.created_at).toLocaleTimeString(window.BizoraI18n?.locale||"ar-MA",{hour:"2-digit",minute:"2-digit"})+'</small>'+
    '<ul>'+(order.order_items||[]).map(item=>'<li>'+esc(item.product_name)+' × '+Number(item.quantity)+'</li>').join("")+'</ul>'+
-   '<b>'+money(order.total)+'</b><label class="worker-table-label">'+esc(t.status)+'<select data-order-status="'+order.id+'">'+statusValues.map(value=>'<option value="'+value+'" '+(order.status===value?"selected":"")+'>'+esc(statusText(value))+'</option>').join("")+'</select></label></article>'
+   '<b>'+money(order.total)+'</b>'+(order.status==="completed"||order.status==="cancelled"?"":'<label class="worker-table-label">'+esc(W("طريقة الدفع","Paiement","Payment"))+'<select data-order-pay="'+order.id+'"><option value="cash">'+esc(W("نقداً","Espèces","Cash"))+'</option><option value="card">'+esc(W("بطاقة","Carte","Card"))+'</option><option value="transfer">'+esc(W("تحويل","Virement","Transfer"))+'</option></select></label>')+'<label class="worker-table-label">'+esc(t.status)+'<select data-order-status="'+order.id+'">'+statusValues.map(value=>'<option value="'+value+'" '+(order.status===value?"selected":"")+'>'+esc(statusText(value))+'</option>').join("")+'</select></label></article>'
   ).join(""):'<div class="empty">'+esc(t.noOrders)+'</div>';
   $("workerOrders").querySelectorAll("[data-order-status]").forEach(select=>select.onchange=async()=>{
    const id=select.dataset.orderStatus,status=select.value;select.disabled=true;
-   const {error:updateError}=await sb.from("orders").update({status,updated_at:new Date().toISOString()}).eq("id",id).eq("organization_id",orgId);
+   const patch={status,updated_at:new Date().toISOString()};
+   if(status==="completed")patch.payment_method=$("workerOrders").querySelector('[data-order-pay="'+id+'"]')?.value||"cash";
+   const {error:updateError}=await sb.from("orders").update(patch).eq("id",id).eq("organization_id",orgId);
    if(updateError){toast(updateError.message);}else{toast("تم تحديث حالة الطلب");}
    await refreshOrders();
   });
@@ -351,6 +443,15 @@ async function workerOrderInterface(){
  });
  $("workerClear").onclick=()=>{workerCart=[];renderCart();};
  $("workerRefreshOrders").onclick=refreshOrders;
+ $("cashForm").onsubmit=async e=>{
+  e.preventDefault();
+  const amount=Number($("cashCounted").value);
+  if(!(amount>=0)){return;}
+  if(!confirm(W("تأكيد جرد الصندوق بمبلغ "+amount+" درهم؟","Confirmer le comptage de "+amount+" MAD ?","Confirm cash count of "+amount+" MAD?")))return;
+  const {error}=await sb.rpc("bizora_submit_cash_count",{p_org:orgId,p_counted:amount,p_note:null});
+  if(error){toast(error.message);return;}
+  $("cashCounted").value="";toast(W("تم تسجيل جرد الصندوق","Comptage enregistré","Cash count saved"));
+ };
  $("workerSend").onclick=async()=>{
   if(!workerCart.length){toast(t.empty);return;}
   const table=bizProfile().tables?$("workerTable").value:"Comptoir";

@@ -4,6 +4,7 @@
    Spanish, German and Chinese fall back to English for any phrase they do not already translate. */
 (()=>{
 const A=[
+["المالية","Finance","Finance"],
 ["للإدارة الكاملة: المنتجات والمبيعات والكاميرات والعمال والتقارير","Gestion complète : produits, ventes, caméras, employés et rapports","Full management: products, sales, cameras, workers and reports"],
 ["أنشئ حساب صاحب محل جديد","Créer un nouveau compte propriétaire","Create a new shop owner account"],
 ["استرجاع كود الإدارة","Récupérer le code d’administration","Recover the admin code"],
