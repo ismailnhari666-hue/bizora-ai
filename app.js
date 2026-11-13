@@ -6,13 +6,12 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 });
 const ownerUnlockKey = (organizationId, userId) => "bizora_owner_unlocked_"+userId+"_"+organizationId;
 const ownerOrgKey = userId => "bizora_owner_org_id_"+userId;
-const ownerRecoveryKey = userId => "bizora_owner_recovery_"+userId;
 function clearBizoraAuthState(){
   for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(key&&key.startsWith("bizora_owner_"))localStorage.removeItem(key);}
   for(let i=sessionStorage.length-1;i>=0;i--){const key=sessionStorage.key(i);if(key&&key.startsWith("bizora_owner_"))sessionStorage.removeItem(key);}
 }
 const $ = id => document.getElementById(id);
-let mode="owner-code", user=null, orgs=[], orgId=null, products=[], currentPage="overview", currentRole=null, workerRefreshTimer=null;
+let mode="owner-login", user=null, orgs=[], orgId=null, products=[], currentPage="overview", currentRole=null, workerRefreshTimer=null;
 const BUSINESS_PROFILES={
   restaurant:{tables:true,menu:true},cafe:{tables:true,menu:true},
   clothing:{tables:false,menu:false},shoes:{tables:false,menu:false},
@@ -36,44 +35,28 @@ function toast(msg){$("toast").textContent=msg;$("toast").style.display="block";
 function authMessage(msg){$("authMsg").textContent=msg}
 function setAuthMode(next){
  mode=next;
- const ownerSide=["owner-login","owner-code","owner-signup","owner-recovery"].includes(next);
+ const ownerSide=["owner-login","owner-signup"].includes(next);
  document.querySelectorAll(".tab[data-mode]").forEach(button=>button.classList.toggle("active",button.dataset.mode===(ownerSide?"owner-login":"worker-login")));
- const ownerCode=next==="owner-code";
  const ownerSignup=next==="owner-signup";
  const workerMode=next==="worker-login";
- $("emailField").classList.toggle("hidden",ownerCode||workerMode);
- $("passwordField").classList.toggle("hidden",ownerCode||workerMode);
+ $("emailField").classList.toggle("hidden",workerMode);
+ $("passwordField").classList.toggle("hidden",workerMode);
  $("workerCodeField").classList.toggle("hidden",!workerMode);
  $("workerCode").required=workerMode;
- $("ownerCodeField").classList.toggle("hidden",!ownerCode);
- $("email").required=!ownerCode&&!workerMode;
- $("password").required=!ownerCode&&!workerMode;
+ $("email").required=!workerMode;
+ $("password").required=!workerMode;
  $("password").minLength=ownerSignup?10:6;
  $("password").autocomplete=ownerSignup?"new-password":"current-password";
- $("ownerCode").required=ownerCode;
- $("authSubmit").textContent=ownerCode?"دخول الإدارة":next==="owner-login"?"دخول صاحب المحل":ownerSignup?"إنشاء حساب صاحب المحل":next==="owner-recovery"?"استرجاع كود الإدارة":"دخول العامل";
- $("ownerRecoveryToggle").classList.toggle("hidden",!ownerCode);
- $("authHint").textContent=next==="owner-login"?"دخول صاحب المحل بالإيميل وكلمة السر":ownerCode?"للإدارة الكاملة: المنتجات والمبيعات والكاميرات والعمال والتقارير":ownerSignup?"أنشئ حساب صاحب محل جديد":next==="owner-recovery"?"استرجاع كود الإدارة":"للعمال: أدخل الكود السري اللي عطاك صاحب المحل. إلى نسيتيه، طلبو منو كود جديد.";
+ $("authSubmit").textContent=ownerSignup?"إنشاء حساب صاحب المحل":workerMode?"دخول العامل":"دخول صاحب المحل";
+ $("authHint").textContent=ownerSignup?"أنشئ حساب صاحب محل جديد":workerMode?"للعمال: أدخل الكود السري اللي عطاك صاحب المحل. إلى نسيتيه، طلبو منو كود جديد.":"دخول صاحب المحل بالإيميل وكلمة السر";
  $("ownerSignupToggle").classList.toggle("hidden",!ownerSide);
- $("ownerSignupToggle").textContent=next==="owner-login"?"صاحب محل جديد؟ أنشئ حسابك":"رجوع لدخول صاحب المحل";
- $("ownerCodeToggle").classList.toggle("hidden",next!=="owner-login");
+ $("ownerSignupToggle").textContent=ownerSignup?"رجوع لدخول صاحب المحل":"صاحب محل جديد؟ أنشئ حسابك";
  authMessage("");
 }
 document.querySelectorAll(".tab[data-mode]").forEach(button=>button.onclick=()=>setAuthMode(button.dataset.mode));
 setAuthMode("owner-login");
-$("ownerRecoveryToggle").onclick=()=>setAuthMode("owner-recovery");
 $("ownerSignupToggle").onclick=()=>setAuthMode(mode==="owner-login"?"owner-signup":"owner-login");
-$("ownerCodeToggle").onclick=()=>setAuthMode("owner-code");
 
-function showOwnerCodeModal(code){
- $("ownerCodeValue").textContent=String(code||"");
- $("ownerCodeModal").classList.remove("hidden");
-}
-$("copyOwnerCode").onclick=async()=>{
- try{await navigator.clipboard.writeText($("ownerCodeValue").textContent);toast("تم نسخ كود الإدارة");}
- catch{toast("تعذر النسخ تلقائياً. احتفظ بالكود يدوياً.");}
-};
-$("closeOwnerCode").onclick=()=>{$("ownerCodeModal").classList.add("hidden");$("ownerCodeValue").textContent="";};
 function showWorkerCodeModal(code,name){
  $("workerCodeName").textContent=name||"";
  $("workerCodeValue").textContent=String(code||"");
@@ -90,18 +73,6 @@ $("authForm").onsubmit=async e=>{
  $("authSubmit").disabled=true;
  authMessage("جاري التحقق…");
  try{
-  if(mode==="owner-code"){
-      const code=$("ownerCode").value.trim();
-   const result=await sb.functions.invoke("bizora-access",{body:{action:"owner_code_login",code}});
-   if(result.error||!result.data?.token_hash){authMessage(result.data?.error||result.error?.message||"تعذر التحقق من كود الإدارة.");return;}
-   const verified=await sb.auth.verifyOtp({token_hash:result.data.token_hash,type:"magiclink"});
-   if(verified.error){authMessage(verified.error.message);return;}
-   localStorage.setItem(ownerUnlockKey(result.data.organization_id,verified.data.user.id),"1");
-   localStorage.setItem(ownerOrgKey(verified.data.user.id),result.data.organization_id);
-   $("ownerCode").value="";
-   await boot();
-   return;
-  }
   if(mode==="worker-login"){
    const code=$("workerCode").value.trim();
    const result=await sb.functions.invoke("bizora-access",{body:{action:"worker_code_login",code}});
@@ -133,8 +104,6 @@ $("authForm").onsubmit=async e=>{
   }
   const result=await sb.auth.signInWithPassword({email,password});
   if(result.error){authMessage(result.error.message);return;}
-  if(mode==="owner-recovery")localStorage.setItem(ownerRecoveryKey(result.data.user.id),"1");
-  if(mode==="owner-login")localStorage.setItem("bizora_owner_pw_"+result.data.user.id,"1");
   await boot();
  }catch(error){authMessage(error?.message||"وقع خطأ غير متوقع أثناء تسجيل الدخول.");}
  finally{$("authSubmit").disabled=false;}
@@ -254,33 +223,6 @@ async function loadOrganizations(preselect){
  document.body.classList.toggle("worker-mode",workerOnly);
  $("orgSelect").closest(".orgbox")?.classList.toggle("hidden",workerOnly);
  $("orgSetup").classList.add("hidden");
- if(currentRole==="owner"){
-  const unlocked=localStorage.getItem(ownerUnlockKey(orgId,user.id))==="1"||localStorage.getItem("bizora_owner_pw_"+user.id)==="1";
-  const recovering=localStorage.getItem(ownerRecoveryKey(user.id))==="1";
-  let status;
-  try{status=await accessRequest({action:"owner_code_status",organization_id:orgId});}
-  catch(error){
-   await sb.auth.signOut();user=null;clearBizoraAuthState();
-   $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
-   setAuthMode("owner-login");authMessage("تعذر التحقق من حماية الإدارة. سجّل الدخول من جديد.");
-   return;
-  }
-  if(status.has_code&&!unlocked&&!recovering){
-   await sb.auth.signOut();user=null;clearBizoraAuthState();
-   $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
-   setAuthMode("owner-login");authMessage("سجّل الدخول بالإيميل وكلمة السر لفتح لوحة التحكم.");
-   return;
-  }
-  if(!status.has_code||recovering){
-   try{
-    const created=await accessRequest({action:"rotate_owner_code",organization_id:orgId});
-    localStorage.setItem(ownerUnlockKey(orgId,user.id),"1");
-    localStorage.removeItem(ownerRecoveryKey(user.id));
-    showOwnerCodeModal(created.code);
-   }catch(error){await sb.auth.signOut();user=null;clearBizoraAuthState();$("appView").classList.add("hidden");$("authView").classList.remove("hidden");setAuthMode("owner-login");authMessage("تعذر إنشاء كود الإدارة بشكل آمن. حاول الدخول مرة أخرى.");return;}
-  }
- }
- if(currentRole!=="owner")localStorage.removeItem(ownerRecoveryKey(user.id));
  if(workerOnly){
   currentPage="worker-ui";
   await loadPage("worker-ui");
@@ -582,26 +524,19 @@ async function workerOrderInterface(){
 async function usersPage(){
  if(currentRole!=="owner"){toast("هذه الصفحة مخصصة لصاحب المحل");return;}
  $("content").innerHTML='<div class="panel"><p class="muted">جاري تحميل حسابات المحل…</p></div>';
- let status,team;
+ let team;
  try{
   const results=await Promise.all([
-   accessRequest({action:"owner_code_status",organization_id:orgId}),
    accessRequest({action:"list_workers",organization_id:orgId})
   ]);
-  status=results[0];team=results[1].workers||[];
+  team=results[0].workers||[];
  }catch(error){$("content").innerHTML='<div class="panel notice">'+esc(error.message)+'</div>';return;}
  $("content").innerHTML=
-  '<section class="panel"><div class="section-head"><div><h3>كود الإدارة</h3><span class="muted">الكود السري الذي يفتح واجهة صاحب المحل مباشرة.</span></div><span class="badge">'+(status.has_code?"مفعّل":"غير مفعّل")+'</span></div><p class="muted">الكود لا يُعرض إلا عند إنشائه أو تغييره. احتفظ به ولا تشاركه مع العمال.</p><button id="rotateOwnerCode" class="primary">'+(status.has_code?"إعادة إصدار كود الإدارة":"إنشاء كود الإدارة")+'</button></section>'+
   '<div class="team-grid"><section class="panel"><h3>إضافة مستخدم جديد</h3><p class="muted">دخل اسم العامل ونوع حسابو، وغادي يتولد ليه كود سري من 8 أرقام. العامل كيدخل بالكود فقط لواجهة العمل.</p>'+
   '<form id="teamForm" class="team-form"><label>الاسم الكامل<input name="name" required minlength="2" maxlength="100" placeholder="اسم العامل"></label><label>نوع الحساب<select name="role"><option value="staff">عامل</option><option value="cashier">أمين الصندوق</option></select></label><button class="primary" id="createWorkerBtn">إنشاء الحساب وتوليد الكود</button></form></section>'+
   '<section class="panel"><div class="section-head"><div><h3>حسابات العمال</h3><span class="muted">'+team.length+' حساب</span></div></div><div id="teamList">'+(team.length?team.map(worker=>
    '<div class="team-member"><div><b>'+esc(worker.name||worker.email||"مستخدم")+'</b><small>'+(worker.email&&!/@workers\.bizora\.app$/.test(worker.email)?esc(worker.email)+' • ':'')+(worker.role!=="owner"&&!worker.has_code?'بلا كود • ':'')+(worker.role==="owner"?"صاحب المحل":worker.role==="manager"?"مدير":worker.role==="cashier"?"أمين الصندوق":"عامل")+' • '+(worker.is_active?"نشط":"موقوف")+'</small></div>'+(worker.role!=="owner"?(worker.is_active?'<button class="secondary" data-reset-code="'+worker.user_id+'" data-name="'+esc(worker.name||"")+'">'+(worker.has_code?'كود جديد':'إنشاء كود')+'</button> <button class="secondary" data-deactivate="'+worker.user_id+'">إيقاف الحساب</button>':'<button class="primary" data-reactivate="'+worker.user_id+'">استرجاع الحساب</button>'):'<span class="badge">صاحب المحل</span>')+'</div>'
   ).join(""):'<div class="empty">لم تتم إضافة أي عامل بعد.</div>')+'</div></section></div>';
- $("rotateOwnerCode").onclick=async()=>{
-  if(!confirm("إصدار كود جديد سيوقف الكود القديم فوراً. هل تريد المتابعة؟"))return;
-  try{const result=await accessRequest({action:"rotate_owner_code",organization_id:orgId});showOwnerCodeModal(result.code);}
-  catch(error){toast(error.message);}
- };
  $("teamForm").onsubmit=async event=>{
   event.preventDefault();const form=new FormData(event.target);
   const button=$("createWorkerBtn");button.disabled=true;button.textContent="جاري إنشاء الحساب…";

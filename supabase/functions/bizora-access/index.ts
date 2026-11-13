@@ -49,49 +49,6 @@ function getIp(req: Request) {
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     "unknown-client";
 }
-async function ownerCodeLogin(req: Request, body: Record<string, unknown>) {
-    const code = String(body.code || "").trim();
-    if (code.length !== 12 || [...code].some((digit) => digit < "0" || digit > "9")) return response({ error: "Invalid access code." }, 400);
-  const ipHash = await sha256(hashPepper + ":bizora-owner-ip:" + getIp(req));
-  const { data: allowed, error: rateError } = await admin.rpc(
-    "bizora_owner_code_rate_limit", { p_ip_hash: ipHash, p_success: null },
-  );
-  if (rateError || allowed !== true) {
-    return response({ error: "Too many attempts. Try again in 15 minutes." }, 429);
-  }
-
-  const codeHash = await sha256(hashPepper + ":bizora-owner-code:" + code);
-  const { data: record, error } = await admin.from("owner_access_codes")
-    .select("organization_id,user_id").eq("code_hash", codeHash).maybeSingle();
-  if (error || !record) {
-    await admin.rpc("bizora_owner_code_rate_limit", { p_ip_hash: ipHash, p_success: false });
-    return response({ error: "The access code is incorrect." }, 401);
-  }
-
-  const { data: membership, error: membershipError } = await admin.from("memberships")
-    .select("id").eq("organization_id", record.organization_id)
-    .eq("user_id", record.user_id).eq("role", "owner")
-    .eq("is_active", true).maybeSingle();
-  if (membershipError || !membership) {
-    await admin.rpc("bizora_owner_code_rate_limit", { p_ip_hash: ipHash, p_success: false });
-    return response({ error: "Owner access is unavailable." }, 403);
-  }
-
-  const { data: ownerResult, error: ownerError } = await admin.auth.admin.getUserById(record.user_id);
-  const email = ownerResult?.user?.email;
-  if (ownerError || !email) return response({ error: "Owner account could not be verified." }, 403);
-
-  const { data: linkData, error: linkError } =
-    await admin.auth.admin.generateLink({ type: "magiclink", email });
-  const tokenHash = linkData?.properties?.hashed_token;
-  if (linkError || !tokenHash) {
-    console.error("Owner code session exchange failed", linkError?.message);
-    return response({ error: "Could not start a secure owner session." }, 500);
-  }
-  await admin.rpc("bizora_owner_code_rate_limit", { p_ip_hash: ipHash, p_success: true });
-  return response({ token_hash: tokenHash, organization_id: record.organization_id });
-}
-
 const WORKER_ROLES = ["staff", "cashier", "manager"];
 function newWorkerCode() {
   const digits = new Uint8Array(8);
@@ -157,29 +114,6 @@ async function authenticatedAction(req: Request, body: Record<string, unknown>) 
   if (!organizationId) return response({ error: "Organization is required." }, 400);
   if (!await requireOwner(user.id, organizationId)) {
     return response({ error: "Owner permission required." }, 403);
-  }
-
-  if (action === "owner_code_status") {
-    const { data, error } = await admin.from("owner_access_codes").select("organization_id")
-      .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
-    if (error) return response({ error: "Could not check owner code status." }, 500);
-    return response({ has_code: Boolean(data) });
-  }
-
-  if (action === "rotate_owner_code") {
-    const digits = new Uint8Array(12);
-    crypto.getRandomValues(digits);
-    const code = [...digits].map((v) => String(v % 10)).join("");
-    const codeHash = await sha256(hashPepper + ":bizora-owner-code:" + code);
-    const { error } = await admin.from("owner_access_codes").upsert({
-      organization_id: organizationId, user_id: user.id,
-      code_hash: codeHash, updated_at: new Date().toISOString(),
-    }, { onConflict: "organization_id" });
-    if (error) {
-      console.error("Owner code save failed", error.message);
-      return response({ error: "Could not save the owner access code." }, 500);
-    }
-    return response({ code });
   }
 
   if (action === "list_workers") {
@@ -287,7 +221,7 @@ Deno.serve(async (req: Request) => {
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return response({ error: "Invalid request body." }, 400);
     }
-    if (body.action === "owner_code_login") return await ownerCodeLogin(req, body);
+    if (body.action === "owner_code_login") return response({ error: "Admin code login has been retired. Sign in with email and password." }, 410);
     if (body.action === "worker_code_login") return await workerCodeLogin(req, body);
     return await authenticatedAction(req, body);
   } catch (error) {
