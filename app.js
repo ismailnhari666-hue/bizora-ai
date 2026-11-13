@@ -40,17 +40,20 @@ function setAuthMode(next){
  document.querySelectorAll(".tab[data-mode]").forEach(button=>button.classList.toggle("active",button.dataset.mode===(ownerSide?"owner-code":"worker-login")));
  const ownerCode=next==="owner-code";
  const ownerSignup=next==="owner-signup";
- $("emailField").classList.toggle("hidden",ownerCode);
- $("passwordField").classList.toggle("hidden",ownerCode);
+ const workerMode=next==="worker-login";
+ $("emailField").classList.toggle("hidden",ownerCode||workerMode);
+ $("passwordField").classList.toggle("hidden",ownerCode||workerMode);
+ $("workerCodeField").classList.toggle("hidden",!workerMode);
+ $("workerCode").required=workerMode;
  $("ownerCodeField").classList.toggle("hidden",!ownerCode);
- $("email").required=!ownerCode;
- $("password").required=!ownerCode;
+ $("email").required=!ownerCode&&!workerMode;
+ $("password").required=!ownerCode&&!workerMode;
  $("password").minLength=ownerSignup?10:6;
  $("password").autocomplete=ownerSignup?"new-password":"current-password";
  $("ownerCode").required=ownerCode;
- $("authSubmit").textContent=ownerCode?"دخول الإدارة":ownerSignup?"إنشاء حساب صاحب المحل":next==="owner-recovery"?"استرجاع كود الإدارة":"دخول واجهة العمل";
+ $("authSubmit").textContent=ownerCode?"دخول الإدارة":ownerSignup?"إنشاء حساب صاحب المحل":next==="owner-recovery"?"استرجاع كود الإدارة":"دخول العامل";
  $("ownerRecoveryToggle").classList.toggle("hidden",!ownerCode);
- $("authHint").textContent=ownerCode?"للإدارة الكاملة: المنتجات والمبيعات والكاميرات والعمال والتقارير":ownerSignup?"أنشئ حساب صاحب محل جديد":next==="owner-recovery"?"استرجاع كود الإدارة":"للعمال: تسجيل الطلبات ومشاهدة مبيعاتك أنت فقط";
+ $("authHint").textContent=ownerCode?"للإدارة الكاملة: المنتجات والمبيعات والكاميرات والعمال والتقارير":ownerSignup?"أنشئ حساب صاحب محل جديد":next==="owner-recovery"?"استرجاع كود الإدارة":"للعمال: أدخل الكود السري اللي عطاك صاحب المحل. إلى نسيتيه، طلبو منو كود جديد.";
  $("ownerSignupToggle").classList.toggle("hidden",!ownerSide);
  $("ownerSignupToggle").textContent=ownerCode?"صاحب محل جديد؟ أنشئ حسابك":"رجوع لدخول الإدارة";
  authMessage("");
@@ -69,6 +72,16 @@ $("copyOwnerCode").onclick=async()=>{
  catch{toast("تعذر النسخ تلقائياً. احتفظ بالكود يدوياً.");}
 };
 $("closeOwnerCode").onclick=()=>{$("ownerCodeModal").classList.add("hidden");$("ownerCodeValue").textContent="";};
+function showWorkerCodeModal(code,name){
+ $("workerCodeName").textContent=name||"";
+ $("workerCodeValue").textContent=String(code||"");
+ $("workerCodeModal").classList.remove("hidden");
+}
+$("copyWorkerCode").onclick=async()=>{
+ try{await navigator.clipboard.writeText($("workerCodeValue").textContent);toast("تم نسخ الكود");}
+ catch{toast("تعذر النسخ تلقائياً. كتب الكود يدوياً.");}
+};
+$("closeWorkerCode").onclick=()=>{$("workerCodeModal").classList.add("hidden");$("workerCodeValue").textContent="";};
 
 $("authForm").onsubmit=async e=>{
  e.preventDefault();
@@ -84,6 +97,20 @@ $("authForm").onsubmit=async e=>{
    localStorage.setItem(ownerUnlockKey(result.data.organization_id,verified.data.user.id),"1");
    localStorage.setItem(ownerOrgKey(verified.data.user.id),result.data.organization_id);
    $("ownerCode").value="";
+   await boot();
+   return;
+  }
+  if(mode==="worker-login"){
+   const code=$("workerCode").value.trim();
+   const result=await sb.functions.invoke("bizora-access",{body:{action:"worker_code_login",code}});
+   if(result.error||!result.data?.token_hash){
+    let msg=result.data?.error;
+    if(!msg&&result.error?.context?.json){try{msg=(await result.error.context.json())?.error}catch{}}
+    authMessage(msg||result.error?.message||"تعذر التحقق من الكود.");return;
+   }
+   const verified=await sb.auth.verifyOtp({token_hash:result.data.token_hash,type:"magiclink"});
+   if(verified.error){authMessage(verified.error.message);return;}
+   $("workerCode").value="";
    await boot();
    return;
   }
@@ -180,8 +207,9 @@ async function boot(){
   return;
  }
  $("authView").classList.add("hidden");$("appView").classList.remove("hidden");
- $("userEmail").textContent=user.email||"Utilisateur";
- $("avatar").textContent=(user.email||"U")[0].toUpperCase();
+ const codeLogin=user.user_metadata?.login_type==="code";
+ $("userEmail").textContent=(codeLogin?user.user_metadata?.display_name:user.email)||user.email||"Utilisateur";
+ $("avatar").textContent=String((codeLogin?user.user_metadata?.display_name:user.email)||"U")[0].toUpperCase();
  window.BizoraI18n?.mount(user.id);
  await loadOrganizations(localStorage.getItem(ownerOrgKey(user.id))||undefined);
 }
@@ -563,10 +591,10 @@ async function usersPage(){
  }catch(error){$("content").innerHTML='<div class="panel notice">'+esc(error.message)+'</div>';return;}
  $("content").innerHTML=
   '<section class="panel"><div class="section-head"><div><h3>كود الإدارة</h3><span class="muted">الكود السري الذي يفتح واجهة صاحب المحل مباشرة.</span></div><span class="badge">'+(status.has_code?"مفعّل":"غير مفعّل")+'</span></div><p class="muted">الكود لا يُعرض إلا عند إنشائه أو تغييره. احتفظ به ولا تشاركه مع العمال.</p><button id="rotateOwnerCode" class="primary">'+(status.has_code?"إعادة إصدار كود الإدارة":"إنشاء كود الإدارة")+'</button></section>'+
-  '<div class="team-grid"><section class="panel"><h3>إضافة مستخدم جديد</h3><p class="muted">أنشئ حساباً مستقلاً للعامل. سيدخل بالبريد الإلكتروني وكلمة المرور إلى واجهة العمل فقط.</p>'+
-  '<form id="teamForm" class="team-form"><label>الاسم الكامل<input name="name" required minlength="2" maxlength="100" placeholder="اسم العامل"></label><label>البريد الإلكتروني<input name="email" type="email" required placeholder="worker@example.com"></label><label>نوع الحساب<select name="role"><option value="staff">عامل</option><option value="cashier">أمين الصندوق</option></select></label><label>كلمة مرور مؤقتة<input name="password" type="password" minlength="10" required autocomplete="new-password" placeholder="10 أحرف على الأقل"></label><button class="primary" id="createWorkerBtn">إنشاء الحساب</button></form></section>'+
+  '<div class="team-grid"><section class="panel"><h3>إضافة مستخدم جديد</h3><p class="muted">دخل اسم العامل ونوع حسابو، وغادي يتولد ليه كود سري من 8 أرقام. العامل كيدخل بالكود فقط لواجهة العمل.</p>'+
+  '<form id="teamForm" class="team-form"><label>الاسم الكامل<input name="name" required minlength="2" maxlength="100" placeholder="اسم العامل"></label><label>نوع الحساب<select name="role"><option value="staff">عامل</option><option value="cashier">أمين الصندوق</option></select></label><button class="primary" id="createWorkerBtn">إنشاء الحساب وتوليد الكود</button></form></section>'+
   '<section class="panel"><div class="section-head"><div><h3>حسابات العمال</h3><span class="muted">'+team.length+' حساب</span></div></div><div id="teamList">'+(team.length?team.map(worker=>
-   '<div class="team-member"><div><b>'+esc(worker.name||worker.email||"مستخدم")+'</b><small>'+esc(worker.email)+' • '+(worker.role==="owner"?"صاحب المحل":worker.role==="manager"?"مدير":worker.role==="cashier"?"أمين الصندوق":"عامل")+' • '+(worker.is_active?"نشط":"موقوف")+'</small></div>'+(worker.role!=="owner"?(worker.is_active?'<button class="secondary" data-deactivate="'+worker.user_id+'">إيقاف الحساب</button>':'<button class="primary" data-reactivate="'+worker.user_id+'">استرجاع الحساب</button>'):'<span class="badge">صاحب المحل</span>')+'</div>'
+   '<div class="team-member"><div><b>'+esc(worker.name||worker.email||"مستخدم")+'</b><small>'+(worker.email&&!/@workers\.bizora\.app$/.test(worker.email)?esc(worker.email)+' • ':'')+(worker.role!=="owner"&&!worker.has_code?'بلا كود • ':'')+(worker.role==="owner"?"صاحب المحل":worker.role==="manager"?"مدير":worker.role==="cashier"?"أمين الصندوق":"عامل")+' • '+(worker.is_active?"نشط":"موقوف")+'</small></div>'+(worker.role!=="owner"?(worker.is_active?'<button class="secondary" data-reset-code="'+worker.user_id+'" data-name="'+esc(worker.name||"")+'">'+(worker.has_code?'كود جديد':'إنشاء كود')+'</button> <button class="secondary" data-deactivate="'+worker.user_id+'">إيقاف الحساب</button>':'<button class="primary" data-reactivate="'+worker.user_id+'">استرجاع الحساب</button>'):'<span class="badge">صاحب المحل</span>')+'</div>'
   ).join(""):'<div class="empty">لم تتم إضافة أي عامل بعد.</div>')+'</div></section></div>';
  $("rotateOwnerCode").onclick=async()=>{
   if(!confirm("إصدار كود جديد سيوقف الكود القديم فوراً. هل تريد المتابعة؟"))return;
@@ -577,11 +605,16 @@ async function usersPage(){
   event.preventDefault();const form=new FormData(event.target);
   const button=$("createWorkerBtn");button.disabled=true;button.textContent="جاري إنشاء الحساب…";
   try{
-   await accessRequest({action:"create_worker",organization_id:orgId,name:String(form.get("name")||"").trim(),email:String(form.get("email")||"").trim(),role:String(form.get("role")||"staff"),password:String(form.get("password")||"")});
-   toast("تم إنشاء حساب العامل. أعطه البريد وكلمة المرور التي أدخلتها.");
+   const created=await accessRequest({action:"create_worker",organization_id:orgId,name:String(form.get("name")||"").trim(),role:String(form.get("role")||"staff")});
+   showWorkerCodeModal(created.code,created.worker?.name);
    await usersPage();
-  }catch(error){toast(error.message);button.disabled=false;button.textContent="إنشاء الحساب";}
+  }catch(error){toast(error.message);button.disabled=false;button.textContent="إنشاء الحساب وتوليد الكود";}
  };
+ document.querySelectorAll("[data-reset-code]").forEach(button=>button.onclick=async()=>{
+  if(!confirm("غادي يتوقف الكود القديم ويتولد كود جديد. نكمل؟"))return;
+  try{const r=await accessRequest({action:"reset_worker_code",organization_id:orgId,user_id:button.dataset.resetCode});showWorkerCodeModal(r.code,r.name||button.dataset.name);await usersPage();}
+  catch(error){toast(error.message);}
+ });
  document.querySelectorAll("[data-deactivate]").forEach(button=>button.onclick=async()=>{
   if(!confirm("هل تريد إيقاف هذا الحساب؟ لن يتمكن العامل من الدخول بعد ذلك."))return;
   try{await accessRequest({action:"deactivate_worker",organization_id:orgId,user_id:button.dataset.deactivate});toast("تم إيقاف الحساب");await usersPage();}

@@ -4,6 +4,19 @@
    Spanish, German and Chinese fall back to English for any phrase they do not already translate. */
 (()=>{
 const A=[
+["الكود السري ديالك","Votre code secret","Your secret code"],
+["أدخل الكود المكوّن من 8 أرقام","Entrez le code à 8 chiffres","Enter the 8-digit code"],
+["دخول العامل","Connexion employé","Worker sign-in"],
+["للعمال: أدخل الكود السري اللي عطاك صاحب المحل. إلى نسيتيه، طلبو منو كود جديد.","Employés : entrez le code secret donné par le patron. Si vous l’avez oublié, demandez-en un nouveau.","Workers: enter the secret code from the shop owner. If you forgot it, ask for a new one."],
+["الكود السري ديال العامل","Code secret de l’employé","Worker secret code"],
+["عطيتو للعامل","Je l’ai donné à l’employé","I gave it to the worker"],
+["الكود كيبان غير هاد المرة. إلى نساه العامل، أصدر ليه كود جديد من صفحة المستخدمين.","Le code n’apparaît qu’une fois. Si l’employé l’oublie, générez-en un nouveau depuis la page Utilisateurs.","The code is shown only once. If the worker forgets it, issue a new one from the Users page."],
+["دخل اسم العامل ونوع حسابو، وغادي يتولد ليه كود سري من 8 أرقام. العامل كيدخل بالكود فقط لواجهة العمل.","Saisissez le nom et le type de compte : un code secret à 8 chiffres sera généré. L’employé se connecte avec ce code uniquement.","Enter the worker’s name and account type: an 8-digit secret code is generated. The worker signs in with the code only."],
+["إنشاء الحساب وتوليد الكود","Créer le compte et générer le code","Create account and generate code"],
+["كود جديد","Nouveau code","New code"],
+["إنشاء كود","Créer un code","Create code"],
+["بلا كود","Sans code","No code"],
+["غادي يتوقف الكود القديم ويتولد كود جديد. نكمل؟","L’ancien code sera désactivé et un nouveau généré. Continuer ?","The old code will stop working and a new one will be generated. Continue?"],
 ["هاد الوحدة مغلقة. فعّلها من الإعدادات","Ce module est désactivé. Activez-le dans les paramètres","This module is turned off. Enable it in Settings"],
 ["تم تشغيل الوحدة","Module activé","Module turned on"],
 ["تم إغلاق الوحدة","Module désactivé","Module turned off"],
