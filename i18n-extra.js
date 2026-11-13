@@ -4,6 +4,12 @@
    Spanish, German and Chinese fall back to English for any phrase they do not already translate. */
 (()=>{
 const A=[
+["دخول صاحب المحل بالإيميل وكلمة السر","Connexion du propriétaire par e-mail et mot de passe","Owner sign-in with email and password"],
+["دخول صاحب المحل","Connexion propriétaire","Owner sign-in"],
+["رجوع لدخول صاحب المحل","Retour à la connexion propriétaire","Back to owner sign-in"],
+["الدخول بكود الإدارة","Se connecter avec le code d’administration","Sign in with admin code"],
+["تعذر التحقق من حماية الإدارة. سجّل الدخول من جديد.","Impossible de vérifier la protection. Reconnectez-vous.","Could not verify admin protection. Please sign in again."],
+["سجّل الدخول بالإيميل وكلمة السر لفتح لوحة التحكم.","Connectez-vous avec e-mail et mot de passe pour ouvrir le tableau de bord.","Sign in with email and password to open the dashboard."],
 ["لوحة المبيعات","Tableau des ventes","Sales board"],
 ["المنتجات اللي كتبان للعامل فلوحة البيع. زيد منتج أو نحّيه من هنا.","Produits affichés à l’employé sur le tableau de vente. Ajoutez ou retirez ici.","Products shown to the worker on the sales board. Add or remove them here."],
 ["إضافة للوحة","Ajouter au tableau","Add to board"],

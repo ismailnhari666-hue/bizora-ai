@@ -36,8 +36,8 @@ function toast(msg){$("toast").textContent=msg;$("toast").style.display="block";
 function authMessage(msg){$("authMsg").textContent=msg}
 function setAuthMode(next){
  mode=next;
- const ownerSide=["owner-code","owner-signup","owner-recovery"].includes(next);
- document.querySelectorAll(".tab[data-mode]").forEach(button=>button.classList.toggle("active",button.dataset.mode===(ownerSide?"owner-code":"worker-login")));
+ const ownerSide=["owner-login","owner-code","owner-signup","owner-recovery"].includes(next);
+ document.querySelectorAll(".tab[data-mode]").forEach(button=>button.classList.toggle("active",button.dataset.mode===(ownerSide?"owner-login":"worker-login")));
  const ownerCode=next==="owner-code";
  const ownerSignup=next==="owner-signup";
  const workerMode=next==="worker-login";
@@ -51,17 +51,19 @@ function setAuthMode(next){
  $("password").minLength=ownerSignup?10:6;
  $("password").autocomplete=ownerSignup?"new-password":"current-password";
  $("ownerCode").required=ownerCode;
- $("authSubmit").textContent=ownerCode?"دخول الإدارة":ownerSignup?"إنشاء حساب صاحب المحل":next==="owner-recovery"?"استرجاع كود الإدارة":"دخول العامل";
+ $("authSubmit").textContent=ownerCode?"دخول الإدارة":next==="owner-login"?"دخول صاحب المحل":ownerSignup?"إنشاء حساب صاحب المحل":next==="owner-recovery"?"استرجاع كود الإدارة":"دخول العامل";
  $("ownerRecoveryToggle").classList.toggle("hidden",!ownerCode);
- $("authHint").textContent=ownerCode?"للإدارة الكاملة: المنتجات والمبيعات والكاميرات والعمال والتقارير":ownerSignup?"أنشئ حساب صاحب محل جديد":next==="owner-recovery"?"استرجاع كود الإدارة":"للعمال: أدخل الكود السري اللي عطاك صاحب المحل. إلى نسيتيه، طلبو منو كود جديد.";
+ $("authHint").textContent=next==="owner-login"?"دخول صاحب المحل بالإيميل وكلمة السر":ownerCode?"للإدارة الكاملة: المنتجات والمبيعات والكاميرات والعمال والتقارير":ownerSignup?"أنشئ حساب صاحب محل جديد":next==="owner-recovery"?"استرجاع كود الإدارة":"للعمال: أدخل الكود السري اللي عطاك صاحب المحل. إلى نسيتيه، طلبو منو كود جديد.";
  $("ownerSignupToggle").classList.toggle("hidden",!ownerSide);
- $("ownerSignupToggle").textContent=ownerCode?"صاحب محل جديد؟ أنشئ حسابك":"رجوع لدخول الإدارة";
+ $("ownerSignupToggle").textContent=next==="owner-login"?"صاحب محل جديد؟ أنشئ حسابك":"رجوع لدخول صاحب المحل";
+ $("ownerCodeToggle").classList.toggle("hidden",next!=="owner-login");
  authMessage("");
 }
 document.querySelectorAll(".tab[data-mode]").forEach(button=>button.onclick=()=>setAuthMode(button.dataset.mode));
-setAuthMode("owner-code");
+setAuthMode("owner-login");
 $("ownerRecoveryToggle").onclick=()=>setAuthMode("owner-recovery");
-$("ownerSignupToggle").onclick=()=>setAuthMode(mode==="owner-code"?"owner-signup":"owner-code");
+$("ownerSignupToggle").onclick=()=>setAuthMode(mode==="owner-login"?"owner-signup":"owner-login");
+$("ownerCodeToggle").onclick=()=>setAuthMode("owner-code");
 
 function showOwnerCodeModal(code){
  $("ownerCodeValue").textContent=String(code||"");
@@ -132,6 +134,7 @@ $("authForm").onsubmit=async e=>{
   const result=await sb.auth.signInWithPassword({email,password});
   if(result.error){authMessage(result.error.message);return;}
   if(mode==="owner-recovery")localStorage.setItem(ownerRecoveryKey(result.data.user.id),"1");
+  if(mode==="owner-login")localStorage.setItem("bizora_owner_pw_"+result.data.user.id,"1");
   await boot();
  }catch(error){authMessage(error?.message||"وقع خطأ غير متوقع أثناء تسجيل الدخول.");}
  finally{$("authSubmit").disabled=false;}
@@ -203,7 +206,7 @@ async function boot(){
   currentRole=null;orgs=[];orgId=null;
   window.BizoraI18n?.mount("guest");
   $("authView").classList.remove("hidden");$("appView").classList.add("hidden");
-  setAuthMode("owner-code");
+  setAuthMode("owner-login");
   return;
  }
  $("authView").classList.add("hidden");$("appView").classList.remove("hidden");
@@ -252,20 +255,20 @@ async function loadOrganizations(preselect){
  $("orgSelect").closest(".orgbox")?.classList.toggle("hidden",workerOnly);
  $("orgSetup").classList.add("hidden");
  if(currentRole==="owner"){
-  const unlocked=localStorage.getItem(ownerUnlockKey(orgId,user.id))==="1";
+  const unlocked=localStorage.getItem(ownerUnlockKey(orgId,user.id))==="1"||localStorage.getItem("bizora_owner_pw_"+user.id)==="1";
   const recovering=localStorage.getItem(ownerRecoveryKey(user.id))==="1";
   let status;
   try{status=await accessRequest({action:"owner_code_status",organization_id:orgId});}
   catch(error){
    await sb.auth.signOut();user=null;clearBizoraAuthState();
    $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
-   setAuthMode("owner-code");authMessage("تعذر التحقق من حماية الإدارة. حاول الدخول بكود الإدارة من جديد.");
+   setAuthMode("owner-login");authMessage("تعذر التحقق من حماية الإدارة. سجّل الدخول من جديد.");
    return;
   }
   if(status.has_code&&!unlocked&&!recovering){
    await sb.auth.signOut();user=null;clearBizoraAuthState();
    $("appView").classList.add("hidden");$("authView").classList.remove("hidden");
-   setAuthMode("owner-code");authMessage("أدخل كود الإدارة الخاص بالمحل لفتح لوحة التحكم.");
+   setAuthMode("owner-login");authMessage("سجّل الدخول بالإيميل وكلمة السر لفتح لوحة التحكم.");
    return;
   }
   if(!status.has_code||recovering){
@@ -274,7 +277,7 @@ async function loadOrganizations(preselect){
     localStorage.setItem(ownerUnlockKey(orgId,user.id),"1");
     localStorage.removeItem(ownerRecoveryKey(user.id));
     showOwnerCodeModal(created.code);
-   }catch(error){await sb.auth.signOut();user=null;clearBizoraAuthState();$("appView").classList.add("hidden");$("authView").classList.remove("hidden");setAuthMode("owner-code");authMessage("تعذر إنشاء كود الإدارة بشكل آمن. حاول الدخول مرة أخرى.");return;}
+   }catch(error){await sb.auth.signOut();user=null;clearBizoraAuthState();$("appView").classList.add("hidden");$("authView").classList.remove("hidden");setAuthMode("owner-login");authMessage("تعذر إنشاء كود الإدارة بشكل آمن. حاول الدخول مرة أخرى.");return;}
   }
  }
  if(currentRole!=="owner")localStorage.removeItem(ownerRecoveryKey(user.id));
