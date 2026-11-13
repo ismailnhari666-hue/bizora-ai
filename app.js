@@ -11,6 +11,7 @@ function clearBizoraAuthState(){
   for(let i=sessionStorage.length-1;i>=0;i--){const key=sessionStorage.key(i);if(key&&key.startsWith("bizora_owner_"))sessionStorage.removeItem(key);}
 }
 const $ = id => document.getElementById(id);
+let recoveryPending=/type=recovery/.test(location.hash+location.search);
 let mode="owner-login", user=null, orgs=[], orgId=null, products=[], currentPage="overview", currentRole=null, workerRefreshTimer=null;
 const BUSINESS_PROFILES={
   restaurant:{tables:true,menu:true},cafe:{tables:true,menu:true},
@@ -39,23 +40,39 @@ function setAuthMode(next){
  document.querySelectorAll(".tab[data-mode]").forEach(button=>button.classList.toggle("active",button.dataset.mode===(ownerSide?"owner-login":"worker-login")));
  const ownerSignup=next==="owner-signup";
  const workerMode=next==="worker-login";
- $("emailField").classList.toggle("hidden",workerMode);
+ const resetMode=next==="reset-password";
+ $("password2Field").classList.toggle("hidden",!resetMode);
+ $("password2").required=resetMode;
+ $("forgotPassword").classList.toggle("hidden",next!=="owner-login");
+ $("emailField").classList.toggle("hidden",workerMode||resetMode);
  $("passwordField").classList.toggle("hidden",workerMode);
  $("workerCodeField").classList.toggle("hidden",!workerMode);
  $("workerCode").required=workerMode;
- $("email").required=!workerMode;
+ $("email").required=!workerMode&&!resetMode;
  $("password").required=!workerMode;
- $("password").minLength=ownerSignup?10:6;
- $("password").autocomplete=ownerSignup?"new-password":"current-password";
- $("authSubmit").textContent=ownerSignup?"إنشاء حساب صاحب المحل":workerMode?"دخول العامل":"دخول صاحب المحل";
- $("authHint").textContent=ownerSignup?"أنشئ حساب صاحب محل جديد":workerMode?"للعمال: أدخل الكود السري اللي عطاك صاحب المحل. إلى نسيتيه، طلبو منو كود جديد.":"دخول صاحب المحل بالإيميل وكلمة السر";
+ $("password").minLength=ownerSignup||resetMode?10:6;
+ $("password").autocomplete=ownerSignup||resetMode?"new-password":"current-password";
+ $("authSubmit").textContent=resetMode?"حفظ كلمة السر الجديدة":ownerSignup?"إنشاء حساب صاحب المحل":workerMode?"دخول العامل":"دخول صاحب المحل";
+ $("authHint").textContent=resetMode?"دخل كلمة سر جديدة (10 أحرف على الأقل) وأكدها":ownerSignup?"أنشئ حساب صاحب محل جديد":workerMode?"للعمال: أدخل الكود السري اللي عطاك صاحب المحل. إلى نسيتيه، طلبو منو كود جديد.":"دخول صاحب المحل بالإيميل وكلمة السر";
  $("ownerSignupToggle").classList.toggle("hidden",!ownerSide);
+ document.querySelectorAll(".tab[data-mode]").forEach(button=>{if(resetMode)button.classList.toggle("active",button.dataset.mode==="owner-login")});
  $("ownerSignupToggle").textContent=ownerSignup?"رجوع لدخول صاحب المحل":"صاحب محل جديد؟ أنشئ حسابك";
  authMessage("");
 }
 document.querySelectorAll(".tab[data-mode]").forEach(button=>button.onclick=()=>setAuthMode(button.dataset.mode));
 setAuthMode("owner-login");
 $("ownerSignupToggle").onclick=()=>setAuthMode(mode==="owner-login"?"owner-signup":"owner-login");
+$("forgotPassword").onclick=async()=>{
+ const email=$("email").value.trim();
+ if(!email.includes("@")){authMessage("كتب الإيميل ديالك فالحقل لفوق، ومن بعد ضغط على «نسيت كلمة السر؟».");$("email").focus();return;}
+ $("forgotPassword").disabled=true;
+ try{
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  if(error&&/rate|seconds|too many/i.test(error.message))authMessage("بزاف د الطلبات. جرّب من بعد دقيقة.");
+  else authMessage("إلى كان هاد الإيميل مسجل، غادي توصلك رسالة فيها رابط لتغيير كلمة السر. شوف حتى Spam.");
+ }catch(error){authMessage(error?.message||"تعذر إرسال الرسالة.");}
+ finally{$("forgotPassword").disabled=false;}
+};
 
 function showWorkerCodeModal(code,name){
  $("workerCodeName").textContent=name||"";
@@ -73,6 +90,18 @@ $("authForm").onsubmit=async e=>{
  $("authSubmit").disabled=true;
  authMessage("جاري التحقق…");
  try{
+  if(mode==="reset-password"){
+   const p1=$("password").value,p2=$("password2").value;
+   if(p1.length<10){authMessage("كلمة السر خاصها تكون 10 أحرف على الأقل.");return;}
+   if(p1!==p2){authMessage("كلمتا السر ما متطابقتينش.");return;}
+   const {error}=await sb.auth.updateUser({password:p1});
+   if(error){authMessage(error.message);return;}
+   recoveryPending=false;$("password").value="";$("password2").value="";
+   try{history.replaceState(null,"",location.pathname)}catch{}
+   toast("تم تغيير كلمة السر");
+   await boot();
+   return;
+  }
   if(mode==="worker-login"){
    const code=$("workerCode").value.trim();
    const result=await sb.functions.invoke("bizora-access",{body:{action:"worker_code_login",code}});
@@ -171,6 +200,11 @@ async function boot(){
  const {data:{session}}=await sb.auth.getSession();
  user=session?.user||null;
  if(!user&&!navigator.onLine){const stored=readJson(AUTH_STORE_KEY,null);user=stored?.user||stored?.currentSession?.user||null;}
+ if(recoveryPending&&user){
+  $("authView").classList.remove("hidden");$("appView").classList.add("hidden");
+  setAuthMode("reset-password");
+  return;
+ }
  if(!user){
   currentRole=null;orgs=[];orgId=null;
   window.BizoraI18n?.mount("guest");
@@ -997,5 +1031,5 @@ async function settingsPage(){
 }
 
 async function reportsPage(){const {data,error}=await sb.from("sales").select("total,created_at,status").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(500);if(error){toast(error.message);return}const total=(data||[]).reduce((a,x)=>a+Number(x.total),0);$("content").innerHTML=`<div class="grid"><div class="stat"><small>Ventes chargées</small><strong>${data.length}</strong></div><div class="stat"><small>Chiffre d'affaires cumulé</small><strong>${money(total)}</strong></div><div class="stat"><small>Ventes finalisées</small><strong>${data.filter(x=>x.status==="completed").length}</strong></div><div class="stat"><small>Période</small><strong>500</strong><em>Dernières opérations maximum</em></div></div><div class="panel" style="margin-top:16px"><h3>Export des ventes</h3><button class="primary" id="exportCsv">Télécharger CSV</button></div>`;$("exportCsv").onclick=()=>{const rows=[["date","total","status"],...(data||[]).map(x=>[x.created_at,x.total,x.status])];const csv=rows.map(r=>r.join(";")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv"}));a.download="bizora-ventes.csv";a.click();URL.revokeObjectURL(a.href)}}
-sb.auth.onAuthStateChange((_event,session)=>{if(!session&&navigator.onLine){$("authView").classList.remove("hidden");$("appView").classList.add("hidden")}});
+sb.auth.onAuthStateChange((_event,session)=>{if(_event==="PASSWORD_RECOVERY"){recoveryPending=true;$("authView").classList.remove("hidden");$("appView").classList.add("hidden");setAuthMode("reset-password");return}if(!session&&navigator.onLine){$("authView").classList.remove("hidden");$("appView").classList.add("hidden")}});
 boot();

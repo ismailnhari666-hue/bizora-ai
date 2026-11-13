@@ -4,6 +4,15 @@
    Spanish, German and Chinese fall back to English for any phrase they do not already translate. */
 (()=>{
 const A=[
+["نسيت كلمة السر؟","Mot de passe oublié ?","Forgot password?"],
+["تأكيد كلمة السر","Confirmer le mot de passe","Confirm password"],
+["حفظ كلمة السر الجديدة","Enregistrer le nouveau mot de passe","Save new password"],
+["دخل كلمة سر جديدة (10 أحرف على الأقل) وأكدها","Saisissez un nouveau mot de passe (10 caractères minimum) et confirmez-le","Enter a new password (at least 10 characters) and confirm it"],
+["كتب الإيميل ديالك فالحقل لفوق، ومن بعد ضغط على «نسيت كلمة السر؟».","Saisissez votre e-mail dans le champ ci-dessus puis cliquez sur « Mot de passe oublié ? ».","Type your email above, then press “Forgot password?”."],
+["إلى كان هاد الإيميل مسجل، غادي توصلك رسالة فيها رابط لتغيير كلمة السر. شوف حتى Spam.","Si cet e-mail est enregistré, vous recevrez un lien pour changer le mot de passe. Vérifiez aussi les spams.","If this email is registered, you will receive a link to change your password. Check spam too."],
+["كلمة السر خاصها تكون 10 أحرف على الأقل.","Le mot de passe doit contenir au moins 10 caractères.","Password must be at least 10 characters."],
+["كلمتا السر ما متطابقتينش.","Les mots de passe ne correspondent pas.","Passwords do not match."],
+["تم تغيير كلمة السر","Mot de passe modifié","Password changed"],
 ["دخول صاحب المحل بالإيميل وكلمة السر","Connexion du propriétaire par e-mail et mot de passe","Owner sign-in with email and password"],
 ["دخول صاحب المحل","Connexion propriétaire","Owner sign-in"],
 ["رجوع لدخول صاحب المحل","Retour à la connexion propriétaire","Back to owner sign-in"],
