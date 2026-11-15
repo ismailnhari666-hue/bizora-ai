@@ -650,6 +650,36 @@ async function usersPage(){
   catch(error){toast(error.message);button.disabled=false;button.textContent="استرجاع الحساب";}
  });
 }
+function marginCell(p){
+ const price=Number(p.unit_price||0),cost=Number(p.cost_price||0);
+ if(!(cost>0))return '<span class="muted" title="أدخل ثمن الشراء باش يتحسب الهامش">—</span>';
+ const profit=price-cost,pct=price>0?Math.round(profit/price*100):0;
+ return '<span class="margin '+(profit<=0?"is-loss":pct<15?"is-low":"is-ok")+'">'+money(profit)+' <small>('+pct+'%)</small></span>';
+}
+async function loadPurchasePanel(){
+ const holder=$("purchasePanel");if(!holder)return;
+ const {data:recent}=await sb.from("purchases").select("id,supplier_name,total,purchased_on,purchase_items(product_name,quantity,unit_cost)").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(8);
+ const past=recent||[];
+ const suppliers=[...new Set(past.map(x=>x.supplier_name).filter(Boolean))];
+ const options='<option value="">اختر المنتج</option>'+products.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join("");
+ const row=()=>'<div class="purchase-line"><select class="p-prod">'+options+'</select><input class="p-qty" type="number" min="0" step=".001" placeholder="الكمية"><input class="p-cost" type="number" min="0" step=".01" placeholder="ثمن الشراء للوحدة"></div>';
+ holder.innerHTML='<details class="panel"><summary><b>تسجيل شراء من مورد</b> <span class="muted">كيزيد المخزون وكيحسب ثمن الشراء أوتوماتيكيا</span></summary>'+
+  '<form id="purchaseForm"><label>المورد (اختياري)<input name="supplier" maxlength="120" list="supplierList" placeholder="اسم المورد"></label><datalist id="supplierList">'+suppliers.map(s=>'<option value="'+esc(s)+'">').join("")+'</datalist>'+
+  '<div id="purchaseLines">'+row()+'</div><div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="secondary" id="addPurchaseLine">+ سطر</button><button class="primary" id="savePurchaseBtn">حفظ الشراء</button></div></form>'+
+  '<p class="muted">الشراء ماشي مصروف: ثمنو كيدخل فالربح ملي كتباع السلعة.</p>'+
+  (past.length?'<div class="board-list">'+past.map(x=>'<div class="board-row"><div><b>'+esc(x.supplier_name||"بلا مورد")+'</b><small>'+esc(x.purchased_on)+' • '+(x.purchase_items||[]).map(i=>esc(i.product_name)+' ×'+Number(i.quantity)).join("، ")+'</small></div><strong>'+money(x.total)+'</strong></div>').join("")+'</div>':"")+'</details>';
+ $("addPurchaseLine").onclick=()=>$("purchaseLines").insertAdjacentHTML("beforeend",row());
+ $("purchaseForm").onsubmit=async e=>{
+  e.preventDefault();
+  const items=[...document.querySelectorAll(".purchase-line")].map(l=>({product_id:l.querySelector(".p-prod").value,quantity:Number(l.querySelector(".p-qty").value),unit_cost:Number(l.querySelector(".p-cost").value)})).filter(i=>i.product_id||i.quantity||i.unit_cost);
+  if(!items.length||items.some(i=>!i.product_id||!(i.quantity>0)||!Number.isFinite(i.unit_cost)||i.unit_cost<0)){toast("عمّر المنتج والكمية وثمن الشراء فكل سطر.");return;}
+  const btn=$("savePurchaseBtn");btn.disabled=true;
+  const {error}=await sb.rpc("bizora_record_purchase",{p_org:orgId,p_supplier:new FormData(e.target).get("supplier")||null,p_items:items,p_note:null});
+  btn.disabled=false;
+  if(error){toast(error.message);return;}
+  toast("تم تسجيل الشراء وتحديث المخزون");await productPage(false);
+ };
+}
 async function productPage(showArchived=false){
   const {data,error}=await sb.from("products").select("*").eq("organization_id",orgId).eq("is_active",!showArchived).order("name");
   if(error){toast(error.message);return}
@@ -682,12 +712,13 @@ async function productPage(showArchived=false){
         <label class="menu-only">تصفية حسب النوع<select id="productTypeFilter"><option value="">الكل</option><option value="food">مأكولات</option><option value="drink">مشروبات</option></select></label>
         <label>تصفية حسب الفئة<select id="productCategoryFilter"><option value="">جميع الفئات</option>${categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select></label>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>المنتج</th><th>النوع</th><th>الفئة</th><th>الثمن</th><th>المخزون</th><th>إجراء</th></tr></thead><tbody id="productRows">${products.length?products.map(p=>`
+      <div class="table-wrap"><table><thead><tr><th>المنتج</th><th>النوع</th><th>الفئة</th><th>الثمن</th><th>الهامش</th><th>المخزون</th><th>إجراء</th></tr></thead><tbody id="productRows">${products.length?products.map(p=>`
         <tr data-name="${esc(p.name.toLowerCase())}" data-type="${esc(p.item_type||"food")}" data-category="${esc(p.category||"")}">
-          <td><b>${esc(p.name)}</b></td><td><span class="badge">${bizProfile().menu?(p.item_type==="drink"?"مشروب":"وجبة"):"—"}</span></td><td>${esc(p.category||"—")}</td><td><b>${money(p.unit_price)}</b></td><td>${Number(p.stock_quantity||0)}</td>
+          <td><b>${esc(p.name)}</b></td><td><span class="badge">${bizProfile().menu?(p.item_type==="drink"?"مشروب":"وجبة"):"—"}</span></td><td>${esc(p.category||"—")}</td><td><b>${money(p.unit_price)}</b></td><td>${marginCell(p)}</td><td>${Number(p.stock_quantity||0)}</td>
           <td><div class="row" style="gap:6px;flex-wrap:wrap"><button type="button" class="secondary edit-product" data-id="${p.id}">تعديل</button><button type="button" class="secondary archive-product" data-id="${p.id}">${showArchived?"استرجاع":"إخفاء"}</button></div></td>
-        </tr>`).join(""):'<tr><td colspan="6" class="empty">لم تتم إضافة أي منتج بعد. استخدم النموذج لإضافة أول وجبة أو مشروب.</td></tr>'}</tbody></table></div>
+        </tr>`).join(""):'<tr><td colspan="7" class="empty">لم تتم إضافة أي منتج بعد. استخدم النموذج لإضافة أول وجبة أو مشروب.</td></tr>'}</tbody></table></div>
     </div>`;
+  if(!showArchived){const first=$("content").querySelector(".panel");if(first){first.insertAdjacentHTML("afterend",'<div id="purchasePanel"></div>');loadPurchasePanel();}}
   $("toggleArchived").onclick=()=>productPage(!showArchived);
   const form=$("productForm");
   const resetForm=()=>{form.reset();$("productId").value="";form.elements.cost_price.value="0";form.elements.stock_quantity.value="0";form.elements.low_stock_threshold.value="2";$("saveProductBtn").textContent="إضافة إلى اللائحة";$("cancelProductEdit").hidden=true;$("productFormMsg").textContent="تُوجَّه المأكولات إلى المطبخ والمشروبات إلى البار تلقائياً."};

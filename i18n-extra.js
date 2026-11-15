@@ -4,6 +4,20 @@
    Spanish, German and Chinese fall back to English for any phrase they do not already translate. */
 (()=>{
 const A=[
+["الهامش","Marge","Margin"],
+["تسجيل شراء من مورد","Enregistrer un achat fournisseur","Record a supplier purchase"],
+["كيزيد المخزون وكيحسب ثمن الشراء أوتوماتيكيا","Augmente le stock et calcule le prix d’achat automatiquement","Raises stock and updates the cost price automatically"],
+["المورد (اختياري)","Fournisseur (facultatif)","Supplier (optional)"],
+["اسم المورد","Nom du fournisseur","Supplier name"],
+["اختر المنتج","Choisir le produit","Choose product"],
+["الكمية","Quantité","Quantity"],
+["ثمن الشراء للوحدة","Prix d’achat unitaire","Unit purchase price"],
+["+ سطر","+ Ligne","+ Line"],
+["حفظ الشراء","Enregistrer l’achat","Save purchase"],
+["الشراء ماشي مصروف: ثمنو كيدخل فالربح ملي كتباع السلعة.","L’achat n’est pas une dépense : son coût entre dans le bénéfice à la vente.","A purchase is not an expense: its cost enters profit when the goods are sold."],
+["بلا مورد","Sans fournisseur","No supplier"],
+["عمّر المنتج والكمية وثمن الشراء فكل سطر.","Renseignez produit, quantité et prix d’achat sur chaque ligne.","Fill product, quantity and purchase price on every line."],
+["تم تسجيل الشراء وتحديث المخزون","Achat enregistré, stock mis à jour","Purchase saved, stock updated"],
 ["عندك محل مسجل ديجا. للمحلات الإضافية تواصل معنا.","Vous avez déjà un commerce enregistré. Contactez-nous pour des commerces supplémentaires.","You already have a shop. Contact us for additional shops."],
 ["تواصل معنا فواتساب","Nous contacter sur WhatsApp","Contact us on WhatsApp"],
 ["الاشتراك منتهي. تواصل مع الإدارة لتجديده.","Abonnement expiré. Contactez l’administration pour le renouveler.","Subscription expired. Contact support to renew."],
