@@ -4,6 +4,11 @@
    Spanish, German and Chinese fall back to English for any phrase they do not already translate. */
 (()=>{
 const A=[
+["الاشتراك منتهي. تواصل مع الإدارة لتجديده.","Abonnement expiré. Contactez l’administration pour le renouveler.","Subscription expired. Contact support to renew."],
+["الاشتراك منتهي","Abonnement expiré","Subscription expired"],
+["هاد المحل ما بقاش مفعّل. بلغ صاحب المحل باش يجدد الاشتراك.","Ce commerce n’est plus actif. Prévenez le propriétaire pour renouveler l’abonnement.","This shop is no longer active. Ask the owner to renew the subscription."],
+["الاشتراكات","Abonnements","Subscriptions"],
+["الاشتراك منتهي: ما تقدرش تزيد مبيعات ولا منتجات حتى تجدد.","Abonnement expiré : impossible d’ajouter ventes ou produits tant que vous ne renouvelez pas.","Subscription expired: you cannot add sales or products until you renew."],
 ["نسيت كلمة السر؟","Mot de passe oublié ?","Forgot password?"],
 ["تأكيد كلمة السر","Confirmer le mot de passe","Confirm password"],
 ["حفظ كلمة السر الجديدة","Enregistrer le nouveau mot de passe","Save new password"],

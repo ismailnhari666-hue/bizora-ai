@@ -32,7 +32,7 @@ function applyModules(){MODULES.forEach(m=>document.body.classList.toggle("mod-o
 function applyBusinessProfile(){const pr=bizProfile();document.body.classList.toggle("no-tables",!pr.tables);document.body.classList.toggle("no-menu",!pr.menu);}
 const money=n=>new Intl.NumberFormat(window.BizoraI18n?.locale||"fr-MA",{style:"currency",currency:"MAD"}).format(Number(n||0));
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-function toast(msg){$("toast").textContent=msg;$("toast").style.display="block";setTimeout(()=>$("toast").style.display="none",3200)}
+function toast(msg){msg=/SUBSCRIPTION_EXPIRED/.test(String(msg))?"الاشتراك منتهي. تواصل مع الإدارة لتجديده.":msg;$("toast").textContent=msg;$("toast").style.display="block";setTimeout(()=>$("toast").style.display="none",3200)}
 function authMessage(msg){$("authMsg").textContent=msg}
 function setAuthMode(next){
  mode=next;
@@ -226,7 +226,7 @@ async function accessRequest(body){
 }
 async function loadOrganizations(preselect){
  let {data,error}=await sb.from("memberships")
-  .select("organization_id,role,is_active,organizations(id,name,currency,timezone,business_type,enabled_modules)")
+  .select("organization_id,role,is_active,organizations(id,name,currency,timezone,business_type,enabled_modules,trial_ends_at,paid_until)")
   .eq("user_id",user.id);
  const memKey="bizora_cache_memberships_"+user.id;
  if(error&&isNetErr(error)){const cached=readJson(memKey,null);if(cached){data=cached;error=null;}}
@@ -252,7 +252,7 @@ async function loadOrganizations(preselect){
  $("orgSelect").value=orgId;
  const activeOrg=orgs.find(o=>o.id===orgId);
  currentRole=activeOrg.role;
- applyBusinessProfile();applyModules();
+ applyBusinessProfile();applyModules();checkPlatformAdmin();
  const workerOnly=["staff","cashier","manager","employee","worker"].includes(currentRole);
  document.body.classList.toggle("worker-mode",workerOnly);
  $("orgSelect").closest(".orgbox")?.classList.toggle("hidden",workerOnly);
@@ -271,9 +271,60 @@ async function loadOrganizations(preselect){
  await loadPage(currentPage==="worker-ui"?"overview":currentPage);
 }
 function heading(title){$("pageTitle").textContent=title;const navPage=MODULES.some(m=>m.key===currentPage)?"settings":currentPage;document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===navPage))}
-async function loadPage(page){if(!orgId)return;if(document.body.classList.contains("worker-mode")&&page!=="worker-ui")page="worker-ui";if(page==="users"&&currentRole!=="owner")page="overview";if(MODULES.some(m=>m.key===page)&&!modOn(page)){toast("هاد الوحدة مغلقة. فعّلها من الإعدادات");page="settings";}currentPage=page;document.querySelector(".topbar")?.classList.toggle("hidden",page==="overview"||page==="worker-ui");const names={overview:"لوحة القيادة",products:"المنتجات والمخزون",sales:"المبيعات",orders:"الطلبات",users:"المستخدمون",cameras:"الكاميرات",reports:"التقارير",finance:"المالية",settings:"الإعدادات"};heading(names[page]||"Vue générale");const pages={overview,products:productPage,sales:salesPage,orders:ordersPage,users:usersPage,cameras:camerasPage,reports:reportsPage,finance:financePage,settings:settingsPage,"worker-ui":workerOrderInterface};
+// WhatsApp number (international format, digits only) shown on the "subscription expired" screen. Example: "212600000000".
+const BILLING_WHATSAPP="";
+function subState(){
+ const org=orgs.find(o=>o.id===orgId)||{};
+ const now=Date.now(),paid=org.paid_until?Date.parse(org.paid_until):0,trial=org.trial_ends_at?Date.parse(org.trial_ends_at):0;
+ if(paid>now)return {status:"active",days:Math.ceil((paid-now)/864e5),expired:false};
+ if(trial>now)return {status:"trial",days:Math.ceil((trial-now)/864e5),expired:false};
+ return {status:"expired",days:0,expired:true};
+}
+const billingLink=()=>BILLING_WHATSAPP?'<a class="ghost" href="https://wa.me/'+BILLING_WHATSAPP+'" target="_blank" rel="noopener">واتساب</a>':"";
+function subscriptionBanner(){
+ const s=subState();
+ if(currentRole!=="owner"||s.status==="active"||(s.status==="trial"&&s.days>7))return null;
+ const el=document.createElement("div");
+ el.className="sub-banner "+(s.expired?"is-expired":"is-trial");
+ el.innerHTML=s.expired?'<span>الاشتراك منتهي: ما تقدرش تزيد مبيعات ولا منتجات حتى تجدد.</span> '+billingLink():'<span>باقي '+s.days+' يوم فالتجربة المجانية.</span> '+billingLink();
+ return el;
+}
+async function checkPlatformAdmin(){
+ const {data}=await sb.rpc("bizora_is_platform_admin");
+ const btn=$("navPlatform");if(btn)btn.classList.toggle("hidden",data!==true);
+}
+async function platformPage(){
+ heading("الاشتراكات");
+ $("content").innerHTML='<div class="panel"><p class="muted">جاري التحميل…</p></div>';
+ const {data,error}=await sb.rpc("bizora_admin_list_orgs");
+ if(error){$("content").innerHTML='<div class="panel notice">'+esc(error.message)+'</div>';return;}
+ const rows=data||[];
+ const day=v=>v?String(v).slice(0,10):"-";
+ const label={active:"مشترك",trial:"تجربة",expired:"منتهي"};
+ $("content").innerHTML='<div class="panel"><div class="section-head"><div><h3>المحلات والاشتراكات</h3><span class="muted">'+rows.length+' محل</span></div></div><div class="plat-list">'+rows.map(o=>
+  '<div class="plat-row" data-org="'+o.id+'"><div class="plat-main"><b>'+esc(o.name)+'</b><small>'+esc(o.owner_email||"-")+' • '+o.members+' مستخدم • '+day(o.created_at)+'</small></div>'+
+  '<span class="plat-chip is-'+o.status+'">'+label[o.status]+'</span>'+
+  '<small class="plat-dates">تجربة: '+day(o.trial_ends_at)+' • مدفوع حتى: '+day(o.paid_until)+'</small>'+
+  '<div class="plat-actions"><button class="secondary" data-ext="1">+1 شهر</button><button class="secondary" data-ext="3">+3 أشهر</button><button class="secondary" data-ext="12">+12 شهر</button><button class="secondary" data-trial="7">تجربة +7 أيام</button><button class="secondary" data-suspend="1">تعليق</button></div></div>'
+ ).join("")+'</div></div>';
+ const run=async(btn,fn,okMsg)=>{
+  const row=btn.closest(".plat-row");
+  const note=prompt("ملاحظة (مثلا مرجع الأداء). تقدر تخليها خاوية:","");
+  if(note===null)return;
+  btn.disabled=true;
+  const {error:err}=await fn(row.dataset.org,note);
+  btn.disabled=false;
+  if(err){toast(err.message);return;}
+  toast(okMsg);await platformPage();
+ };
+ document.querySelectorAll("[data-ext]").forEach(b=>b.onclick=()=>run(b,(org,note)=>sb.rpc("bizora_admin_extend",{p_org:org,p_months:Number(b.dataset.ext),p_note:note}),"تم التمديد"));
+ document.querySelectorAll("[data-trial]").forEach(b=>b.onclick=()=>run(b,(org,note)=>sb.rpc("bizora_admin_extend_trial",{p_org:org,p_days:Number(b.dataset.trial),p_note:note}),"تم تمديد التجربة"));
+ document.querySelectorAll("[data-suspend]").forEach(b=>b.onclick=()=>{if(confirm("تعليق هاد المحل؟ غادي يمنع المبيعات والمنتجات الجديدة."))run(b,(org,note)=>sb.rpc("bizora_admin_suspend",{p_org:org,p_note:note}),"تم التعليق");});
+}
+async function loadPage(page){if(!orgId)return;if(document.body.classList.contains("worker-mode")&&page!=="worker-ui")page="worker-ui";if(page==="users"&&currentRole!=="owner")page="overview";if(MODULES.some(m=>m.key===page)&&!modOn(page)){toast("هاد الوحدة مغلقة. فعّلها من الإعدادات");page="settings";}currentPage=page;document.querySelector(".topbar")?.classList.toggle("hidden",page==="overview"||page==="worker-ui");const names={overview:"لوحة القيادة",products:"المنتجات والمخزون",sales:"المبيعات",orders:"الطلبات",users:"المستخدمون",cameras:"الكاميرات",reports:"التقارير",finance:"المالية",settings:"الإعدادات",platform:"الاشتراكات"};heading(names[page]||"Vue générale");const pages={overview,products:productPage,sales:salesPage,orders:ordersPage,users:usersPage,cameras:camerasPage,reports:reportsPage,finance:financePage,settings:settingsPage,platform:platformPage,"worker-ui":workerOrderInterface};
 const run=pages[page];if(!run)return;
 const result=await run();
+if(page!=="worker-ui"&&page!=="platform"&&$("content")){const banner=subscriptionBanner();if(banner)$("content").prepend(banner);}
 if(MODULES.some(m=>m.key===page)&&$("content")){const back=document.createElement("button");back.type="button";back.className="ghost back-settings";back.textContent="← "+({ar:"الإعدادات",fr:"Paramètres",en:"Settings"}[window.BizoraI18n?.language]||"Settings");back.onclick=()=>loadPage("settings");$("content").prepend(back);}
 return result}
 async function overview(){
@@ -421,6 +472,7 @@ async function financePage(){
 let workerCart=[];
 async function workerOrderInterface(){
  if(workerRefreshTimer){clearInterval(workerRefreshTimer);workerRefreshTimer=null;}
+ if(subState().expired){$("content").innerHTML='<div class="panel sub-lock"><h2>الاشتراك منتهي</h2><p>هاد المحل ما بقاش مفعّل. بلغ صاحب المحل باش يجدد الاشتراك.</p></div>';return;}
  const lang=window.BizoraI18n?.language||"ar";
  const W=(ar,fr,en)=>({ar,fr,en})[lang]||en;
  const words={
