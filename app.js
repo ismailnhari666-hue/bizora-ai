@@ -280,6 +280,18 @@ function subState(){
  if(trial>now)return {status:"trial",days:Math.ceil((trial-now)/864e5),expired:false};
  return {status:"expired",days:0,expired:true};
 }
+// Fill these in once you decide them. Empty values are hidden from customers.
+const PLAN_PRICE_MAD=0;            // monthly price in MAD, e.g. 99
+const PAYMENT_INFO={rib:"",holder:"",cashplus:"",note:""};
+function paymentInfoHtml(){
+ const rows=[];
+ if(PLAN_PRICE_MAD)rows.push("الثمن: "+PLAN_PRICE_MAD+" درهم فالشهر");
+ if(PAYMENT_INFO.rib)rows.push("تحويل بنكي (RIB): <b dir=\"ltr\">"+esc(PAYMENT_INFO.rib)+"</b>"+(PAYMENT_INFO.holder?" باسم "+esc(PAYMENT_INFO.holder):""));
+ if(PAYMENT_INFO.cashplus)rows.push("Cash Plus / Wafacash: <b dir=\"ltr\">"+esc(PAYMENT_INFO.cashplus)+"</b>");
+ if(PAYMENT_INFO.note)rows.push(esc(PAYMENT_INFO.note));
+ if(!rows.length)return '<p class="muted">باش تجدد الاشتراك تواصل معنا فواتساب وغادي نعطيوك طريقة الأداء.</p>';
+ return '<ul class="pay-info">'+rows.map(r=>"<li>"+r+"</li>").join("")+'</ul><p class="muted">من بعد الأداء ابعت لنا الوصل فواتساب وغادي نفعلو الاشتراك.</p>';
+}
 const billingLink=(text)=>BILLING_WHATSAPP?'<a class="ghost" href="https://wa.me/'+BILLING_WHATSAPP+'?text='+encodeURIComponent(text||"سلام، بغيت نجدد اشتراك Bizora")+'" target="_blank" rel="noopener">تواصل معنا فواتساب</a>':"";
 function subscriptionBanner(){
  const s=subState();
@@ -379,7 +391,7 @@ async function overview(){
         <section class="panel dashboard-shortcuts"><h3>اختصارات سريعة</h3><button onclick="loadPage('products')"><span>▦</span> المنتجات والمخزون <b>←</b></button><button onclick="loadPage('reports')"><span>▤</span> التقارير <b>←</b></button><button onclick="loadPage('cameras')"><span>◉</span> الكاميرات <b>←</b></button></section>
       </aside>
     </div>`;
-  loadProfitStrip();
+  loadProfitStrip();loadCashAlert();
 }
 
 const FIN_CATS={rent:["الكراء","Loyer","Rent"],utilities:["الكهرباء والماء والإنترنت","Électricité, eau, internet","Utilities"],salaries:["الأجور","Salaires","Salaries"],transport:["النقل","Transport","Transport"],marketing:["الإشهار","Publicité","Marketing"],supplies:["مستلزمات (غير السلعة)","Fournitures (hors marchandises)","Supplies (not stock)"],other:["أخرى","Autres","Other"]};
@@ -388,6 +400,21 @@ function finDates(){
  const ymd=d=>new Intl.DateTimeFormat("en-CA",{timeZone:tz,year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
  const now=new Date(),today=ymd(now);
  return {today,ymd,range:key=>key==="today"?[today,today]:key==="week"?[ymd(new Date(now.getTime()-6*86400000)),today]:key==="month"?[today.slice(0,8)+"01",today]:[ymd(new Date(now.getTime()-29*86400000)),today]};
+}
+const CASH_ALERT_MIN=50;
+async function loadCashAlert(){
+ try{
+  if(currentRole!=="owner"||!modOn("finance"))return;
+  const since=new Date();since.setHours(0,0,0,0);
+  const {data,error}=await sb.from("cash_counts").select("counted_by_email,difference,created_at").eq("organization_id",orgId).gte("created_at",since.toISOString()).order("created_at",{ascending:false}).limit(20);
+  if(error||currentPage!=="overview"||!$("content"))return;
+  const bad=(data||[]).filter(r=>Math.abs(Number(r.difference))>=CASH_ALERT_MIN);
+  if(!bad.length)return;
+  const el=document.createElement("section");
+  el.className="sub-banner is-expired cash-alert";
+  el.innerHTML='<span><b>فرق فالصندوق اليوم:</b> '+bad.map(r=>esc(String(r.counted_by_email||"").replace(/@.*/,"")||"عامل")+' ('+(Number(r.difference)>0?"+":"")+money(r.difference)+')').join("، ")+'</span><button class="secondary" onclick="loadPage(\'finance\')">المالية</button>';
+  $("content").prepend(el);
+ }catch(e){console.warn("cash alert:",e)}
 }
 async function loadProfitStrip(){
  try{
@@ -1048,8 +1075,10 @@ async function settingsPage(){
   const canRunSalesTest=orgs.some(o=>o.id===orgId&&o.role==="owner");
   const salesTestPanel=canRunSalesTest?`<div class="panel" style="margin-top:16px"><div class="section-head"><div><h3>اختبار تقرير المبيعات فقط</h3><span class="muted">إرسال تجريبي مستقل، بدون الكاميرات وبدون تفعيل التقرير اليومي.</span></div><span class="badge">اختبار يدوي</span></div><form id="salesTestForm" class="form-grid"><label>رقم WhatsApp الشخصي بصيغة دولية<input name="recipient" type="tel" inputmode="tel" placeholder="+2126XXXXXXXX" required maxlength="20"><small class="muted">الرقم يستعمل لهذا الاختبار فقط ولا يتم حفظه.</small></label><button class="primary" type="submit">معاينة تقرير المبيعات</button></form><div id="salesTestPreview" class="muted" aria-live="polite"></div></div>`:"";
   const ml=(lang=>({ar:0,fr:1}[lang]??2))(window.BizoraI18n?.language);
+  const sub=subState();
+  const subPanel=currentRole==="owner"?'<div class="panel"><div class="section-head"><div><h3>اشتراكي</h3><span class="muted">'+(sub.status==="active"?"مشترك: باقي "+sub.days+" يوم":sub.status==="trial"?"تجربة مجانية: باقي "+sub.days+" يوم":"الاشتراك منتهي")+'</span></div>'+billingLink("سلام، بغيت نجدد اشتراك Bizora")+'</div>'+paymentInfoHtml()+'</div>':"";
   const modulesPanel=currentRole==="owner"?`<div class="panel"><div class="section-head"><div><h3>${["الوحدات","Modules","Modules"][ml]}</h3><span class="muted">${["شغّل أو سد كل وحدة. الوحدة المغلقة كتختفي من التطبيق.","Activez ou désactivez chaque module. Un module désactivé disparaît de l’application.","Turn each module on or off. A disabled module disappears from the app."][ml]}</span></div></div><div class="module-list">${MODULES.map(m=>`<div class="module-row" data-module-row="${m.key}"><span class="module-icon">${m.icon}</span><div class="module-text"><b>${esc(m.name[ml])}</b><small>${esc(m.desc[ml])}</small></div><button type="button" class="secondary module-open" data-open="${m.key}" ${modOn(m.key)?"":"disabled"}>${["فتح","Ouvrir","Open"][ml]}</button><label class="switch" aria-label="${esc(m.name[ml])}"><input type="checkbox" data-module="${m.key}" ${modOn(m.key)?"checked":""}><span class="slider"></span></label></div>`).join("")}</div></div>`:"";
-  $("content").innerHTML=`${currentRole==="owner"?'<div id="boardPanel"></div>':""}${modulesPanel}${businessPanel}
+  $("content").innerHTML=`${currentRole==="owner"?'<div id="boardPanel"></div>':""}${subPanel}${modulesPanel}${businessPanel}
     <div class="panel">
       <div class="section-head"><div><h3>Rapport quotidien sur WhatsApp</h3><span class="muted">حدد رقمك والساعة والتفاصيل اللي بغيتي توصلك كل نهار.</span></div><span class="badge">WhatsApp Business</span></div>
       <form id="dailyReportSettings" class="form-grid">

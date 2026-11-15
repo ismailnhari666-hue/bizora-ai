@@ -4,6 +4,10 @@
    Spanish, German and Chinese fall back to English for any phrase they do not already translate. */
 (()=>{
 const A=[
+["اشتراكي","Mon abonnement","My subscription"],
+["فرق فالصندوق اليوم:","Écart de caisse aujourd’hui :","Cash difference today:"],
+["باش تجدد الاشتراك تواصل معنا فواتساب وغادي نعطيوك طريقة الأداء.","Pour renouveler, contactez-nous sur WhatsApp et nous vous indiquerons le mode de paiement.","To renew, contact us on WhatsApp and we will send the payment details."],
+["من بعد الأداء ابعت لنا الوصل فواتساب وغادي نفعلو الاشتراك.","Après paiement, envoyez-nous le reçu sur WhatsApp et nous activerons l’abonnement.","After paying, send the receipt on WhatsApp and we will activate your subscription."],
 ["الهامش","Marge","Margin"],
 ["تسجيل شراء من مورد","Enregistrer un achat fournisseur","Record a supplier purchase"],
 ["كيزيد المخزون وكيحسب ثمن الشراء أوتوماتيكيا","Augmente le stock et calcule le prix d’achat automatiquement","Raises stock and updates the cost price automatically"],

@@ -267,3 +267,5 @@ button.worker-product-tile{font:inherit;color:inherit;width:100%;cursor:pointer;
 .margin.is-ok{color:#0b6b57;font-weight:700}.margin.is-low{color:#a35a00;font-weight:700}.margin.is-loss{color:#b42318;font-weight:700}
 .purchase-line{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin:8px 0}@media(max-width:600px){.purchase-line{grid-template-columns:1fr}}
 #purchasePanel details>summary{cursor:pointer}
+
+.pay-info{margin:10px 0;padding-inline-start:18px;line-height:1.9}
