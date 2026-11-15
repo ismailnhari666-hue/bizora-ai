@@ -275,6 +275,7 @@ function heading(title){$("pageTitle").textContent=title;const navPage=MODULES.s
 const BILLING_WHATSAPP="212619442418";
 function subState(){
  const org=orgs.find(o=>o.id===orgId)||{};
+ if(org.trial_ends_at===undefined&&org.paid_until===undefined)return {status:"active",days:999,expired:false};
  const now=Date.now(),paid=org.paid_until?Date.parse(org.paid_until):0,trial=org.trial_ends_at?Date.parse(org.trial_ends_at):0;
  if(paid>now)return {status:"active",days:Math.ceil((paid-now)/864e5),expired:false};
  if(trial>now)return {status:"trial",days:Math.ceil((trial-now)/864e5),expired:false};
