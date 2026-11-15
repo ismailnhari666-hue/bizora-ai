@@ -4,6 +4,7 @@
    Spanish, German and Chinese fall back to English for any phrase they do not already translate. */
 (()=>{
 const A=[
+["تواصل معنا فواتساب","Nous contacter sur WhatsApp","Contact us on WhatsApp"],
 ["الاشتراك منتهي. تواصل مع الإدارة لتجديده.","Abonnement expiré. Contactez l’administration pour le renouveler.","Subscription expired. Contact support to renew."],
 ["الاشتراك منتهي","Abonnement expiré","Subscription expired"],
 ["هاد المحل ما بقاش مفعّل. بلغ صاحب المحل باش يجدد الاشتراك.","Ce commerce n’est plus actif. Prévenez le propriétaire pour renouveler l’abonnement.","This shop is no longer active. Ask the owner to renew the subscription."],

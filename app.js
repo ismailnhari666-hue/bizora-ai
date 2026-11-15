@@ -272,7 +272,7 @@ async function loadOrganizations(preselect){
 }
 function heading(title){$("pageTitle").textContent=title;const navPage=MODULES.some(m=>m.key===currentPage)?"settings":currentPage;document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===navPage))}
 // WhatsApp number (international format, digits only) shown on the "subscription expired" screen. Example: "212600000000".
-const BILLING_WHATSAPP="";
+const BILLING_WHATSAPP="212619442418";
 function subState(){
  const org=orgs.find(o=>o.id===orgId)||{};
  const now=Date.now(),paid=org.paid_until?Date.parse(org.paid_until):0,trial=org.trial_ends_at?Date.parse(org.trial_ends_at):0;
@@ -280,7 +280,7 @@ function subState(){
  if(trial>now)return {status:"trial",days:Math.ceil((trial-now)/864e5),expired:false};
  return {status:"expired",days:0,expired:true};
 }
-const billingLink=()=>BILLING_WHATSAPP?'<a class="ghost" href="https://wa.me/'+BILLING_WHATSAPP+'" target="_blank" rel="noopener">واتساب</a>':"";
+const billingLink=(text)=>BILLING_WHATSAPP?'<a class="ghost" href="https://wa.me/'+BILLING_WHATSAPP+'?text='+encodeURIComponent(text||"سلام، بغيت نجدد اشتراك Bizora")+'" target="_blank" rel="noopener">تواصل معنا فواتساب</a>':"";
 function subscriptionBanner(){
  const s=subState();
  if(currentRole!=="owner"||s.status==="active"||(s.status==="trial"&&s.days>7))return null;
