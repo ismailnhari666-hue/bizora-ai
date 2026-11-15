@@ -32,7 +32,7 @@ function applyModules(){MODULES.forEach(m=>document.body.classList.toggle("mod-o
 function applyBusinessProfile(){const pr=bizProfile();document.body.classList.toggle("no-tables",!pr.tables);document.body.classList.toggle("no-menu",!pr.menu);}
 const money=n=>new Intl.NumberFormat(window.BizoraI18n?.locale||"fr-MA",{style:"currency",currency:"MAD"}).format(Number(n||0));
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-function toast(msg){msg=/SUBSCRIPTION_EXPIRED/.test(String(msg))?"الاشتراك منتهي. تواصل مع الإدارة لتجديده.":msg;$("toast").textContent=msg;$("toast").style.display="block";setTimeout(()=>$("toast").style.display="none",3200)}
+function toast(msg){msg=/SUBSCRIPTION_EXPIRED/.test(String(msg))?"الاشتراك منتهي. تواصل مع الإدارة لتجديده.":/ORG_LIMIT/.test(String(msg))?"عندك محل مسجل ديجا. للمحلات الإضافية تواصل معنا.":msg;$("toast").textContent=msg;$("toast").style.display="block";setTimeout(()=>$("toast").style.display="none",3200)}
 function authMessage(msg){$("authMsg").textContent=msg}
 function setAuthMode(next){
  mode=next;
@@ -139,7 +139,7 @@ $("authForm").onsubmit=async e=>{
 };
 $("logout").onclick=async()=>{clearBizoraAuthState();await sb.auth.signOut();location.reload()};
 $("refresh").onclick=()=>loadPage(currentPage);
-$("orgForm").onsubmit=async e=>{e.preventDefault();$("orgMsg").textContent="Création…";const {data,error}=await sb.rpc("bizora_create_organization",{p_name:$("orgName").value.trim()});if(error){$("orgMsg").textContent=error.message;return}toast("تم إنشاء المحل");try{const t=await sb.rpc("bizora_set_business_type",{p_org:data,p_type:$("orgType").value});if(t.error)console.warn("business_type:",t.error.message)}catch(e){console.warn("business_type:",e)}await loadOrganizations(data)};
+$("orgForm").onsubmit=async e=>{e.preventDefault();$("orgMsg").textContent="Création…";const {data,error}=await sb.rpc("bizora_create_organization",{p_name:$("orgName").value.trim()});if(error){$("orgMsg").textContent=/ORG_LIMIT/.test(error.message)?"عندك محل مسجل ديجا. للمحلات الإضافية تواصل معنا.":error.message;return}toast("تم إنشاء المحل");try{const t=await sb.rpc("bizora_set_business_type",{p_org:data,p_type:$("orgType").value});if(t.error)console.warn("business_type:",t.error.message)}catch(e){console.warn("business_type:",e)}await loadOrganizations(data)};
 $("orgSelect").onchange=async e=>{await loadOrganizations(e.target.value)};
 document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>{if(document.body.classList.contains("worker-mode"))return;loadPage(b.dataset.page)});
 
@@ -595,7 +595,8 @@ async function workerOrderInterface(){
   const meta={lines:workerCart.map(item=>({product_name:item.name,quantity:item.qty})),total:workerCart.reduce((s,item)=>s+item.qty*item.price,0)};
   const {data,error,queued}=await rpcOrQueue("bizora_create_order",{
    p_org:orgId,p_customer:null,p_table:table,p_note:null,
-   p_items:workerCart.map(item=>({product_id:item.id,quantity:item.qty}))
+   p_items:workerCart.map(item=>({product_id:item.id,quantity:item.qty})),
+   p_client_ref:(crypto.randomUUID?crypto.randomUUID():null)
   },meta);
   button.disabled=false;button.textContent=t.confirm;
   if(error){toast(error.message);return;}
