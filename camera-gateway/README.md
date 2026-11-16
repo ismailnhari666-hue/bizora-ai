@@ -12,6 +12,20 @@ A local service for a shop PC or mini-PC on the same LAN as a Dahua/Hikvision NV
 
 **Not implemented yet:** ONVIF discovery, QR pairing UX, continuous video analytics, people counting, table occupancy, meal/drink detection, or AI event generation. This is a connectivity foundation, not an AI detector.
 
+## Local ONVIF discovery (new)
+
+From the gateway computer, on the same LAN/VLAN as the recorder, run:
+
+```bash
+python discovery.py
+# Or select a specific local network interface:
+python discovery.py --interface 192.168.1.20 --timeout 8
+```
+
+The scanner sends the standard ONVIF WS-Discovery multicast probe (UDP 3702) and prints discovered private-LAN device IPs, ONVIF service URLs, and metadata advertised by the device. It does not scan public IP ranges, guess passwords, or save credentials. Some DVR/NVR devices have ONVIF disabled or multicast filtered; those will need ONVIF enabled in the recorder settings or a manual IP fallback. This is a discovery diagnostic foundation; it does not yet enroll discovered devices into the Bizora camera list or enumerate recorder channels.
+
+Run parser tests with `python -m unittest test_discovery.py`.
+
 ## Requirements
 
 - Windows/Linux mini-PC or shop computer on the same network as the NVR/cameras.
